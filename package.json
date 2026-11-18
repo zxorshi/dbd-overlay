@@ -1,0 +1,20 @@
+{
+  "name": "dbd-overlay",
+  "version": "0.1.0",
+  "description": "Free, open source overlay toolkit for Dead by Daylight. Not affiliated with Behaviour Interactive.",
+  "main": "src/main/main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "update-data": "node scripts/update-data.mjs",
+    "test": "node --test",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "dev.dbdoverlay.app",
+    "productName": "DBD Overlay",
+    "files": ["src/**", "data/**"],
+    "win": { "target": "nsis" }
+  },
+  "devDependencies": { "electron": "^33.4.11" }
+}

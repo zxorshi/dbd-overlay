@@ -1,0 +1,590 @@
+[
+ {
+  "id": "Ace",
+  "num": 6,
+  "name": "Ace Visconti",
+  "role": "survivor"
+ },
+ {
+  "id": "S32",
+  "num": 31,
+  "name": "Ada Wong",
+  "role": "survivor"
+ },
+ {
+  "id": "Adam",
+  "num": 13,
+  "name": "Adam Francis",
+  "role": "survivor"
+ },
+ {
+  "id": "S42",
+  "num": 41,
+  "name": "Aestri Yazar",
+  "role": "survivor"
+ },
+ {
+  "id": "S40",
+  "num": 39,
+  "name": "Alan Wake",
+  "role": "survivor"
+ },
+ {
+  "id": "Ash",
+  "num": 16,
+  "name": "Ashley J. Williams",
+  "role": "survivor"
+ },
+ {
+  "id": "S54",
+  "num": 53,
+  "name": "Aurora Stardotter",
+  "role": "survivor"
+ },
+ {
+  "id": "S22",
+  "num": 21,
+  "name": "Cheryl Mason",
+  "role": "survivor"
+ },
+ {
+  "id": "Claudette",
+  "num": 2,
+  "name": "Claudette Morel",
+  "role": "survivor"
+ },
+ {
+  "id": "Smoke",
+  "num": 9,
+  "name": "David King",
+  "role": "survivor"
+ },
+ {
+  "id": "Eric",
+  "num": 12,
+  "name": "Detective Tapp",
+  "role": "survivor"
+ },
+ {
+  "id": "S50",
+  "num": 49,
+  "name": "Dustin Henderson",
+  "role": "survivor"
+ },
+ {
+  "id": "Dwight",
+  "num": 0,
+  "name": "Dwight Fairfield",
+  "role": "survivor"
+ },
+ {
+  "id": "S51",
+  "num": 50,
+  "name": "Eleven",
+  "role": "survivor"
+ },
+ {
+  "id": "S39",
+  "num": 38,
+  "name": "Ellen Ripley",
+  "role": "survivor"
+ },
+ {
+  "id": "S24",
+  "num": 23,
+  "name": "Élodie Rakoto",
+  "role": "survivor"
+ },
+ {
+  "id": "S23",
+  "num": 22,
+  "name": "Felix Richter",
+  "role": "survivor"
+ },
+ {
+  "id": "Feng",
+  "num": 8,
+  "name": "Feng Min",
+  "role": "survivor"
+ },
+ {
+  "id": "S37",
+  "num": 36,
+  "name": "Gabriel Soma",
+  "role": "survivor"
+ },
+ {
+  "id": "S31",
+  "num": 30,
+  "name": "Haddie Kaur",
+  "role": "survivor"
+ },
+ {
+  "id": "Jake",
+  "num": 3,
+  "name": "Jake Park",
+  "role": "survivor"
+ },
+ {
+  "id": "Jane",
+  "num": 15,
+  "name": "Jane Romero",
+  "role": "survivor"
+ },
+ {
+  "id": "Jeff",
+  "num": 14,
+  "name": "Jeff Johansen",
+  "role": "survivor"
+ },
+ {
+  "id": "S26",
+  "num": 25,
+  "name": "Jill Valentine",
+  "role": "survivor"
+ },
+ {
+  "id": "S29",
+  "num": 28,
+  "name": "Jonah Vasquez",
+  "role": "survivor"
+ },
+ {
+  "id": "Kate",
+  "num": 10,
+  "name": "Kate Denson",
+  "role": "survivor"
+ },
+ {
+  "id": "S52",
+  "num": 51,
+  "name": "Kwon Tae-young",
+  "role": "survivor"
+ },
+ {
+  "id": "S43",
+  "num": 42,
+  "name": "Lara Croft",
+  "role": "survivor"
+ },
+ {
+  "id": "Laurie",
+  "num": 5,
+  "name": "Laurie Strode",
+  "role": "survivor"
+ },
+ {
+  "id": "S25",
+  "num": 24,
+  "name": "Lee Yun-jin",
+  "role": "survivor"
+ },
+ {
+  "id": "S27",
+  "num": 26,
+  "name": "Leon S. Kennedy",
+  "role": "survivor"
+ },
+ {
+  "id": "Meg",
+  "num": 1,
+  "name": "Meg Thomas",
+  "role": "survivor"
+ },
+ {
+  "id": "S48",
+  "num": 47,
+  "name": "Michonne Grimes",
+  "role": "survivor"
+ },
+ {
+  "id": "S28",
+  "num": 27,
+  "name": "Mikaela Reid",
+  "role": "survivor"
+ },
+ {
+  "id": "Nancy",
+  "num": 17,
+  "name": "Nancy Wheeler",
+  "role": "survivor"
+ },
+ {
+  "id": "Nea",
+  "num": 4,
+  "name": "Nea Karlsson",
+  "role": "survivor"
+ },
+ {
+  "id": "S38",
+  "num": 37,
+  "name": "Nicolas Cage",
+  "role": "survivor"
+ },
+ {
+  "id": "S46",
+  "num": 45,
+  "name": "Orela Rose",
+  "role": "survivor"
+ },
+ {
+  "id": "Quentin",
+  "num": 11,
+  "name": "Quentin Smith",
+  "role": "survivor"
+ },
+ {
+  "id": "S33",
+  "num": 32,
+  "name": "Rebecca Chambers",
+  "role": "survivor"
+ },
+ {
+  "id": "S36",
+  "num": 35,
+  "name": "Renato Lyra",
+  "role": "survivor"
+ },
+ {
+  "id": "S47",
+  "num": 46,
+  "name": "Rick Grimes",
+  "role": "survivor"
+ },
+ {
+  "id": "S41",
+  "num": 40,
+  "name": "Sable Ward",
+  "role": "survivor"
+ },
+ {
+  "id": "S53",
+  "num": 52,
+  "name": "Shane Wiigwaas",
+  "role": "survivor"
+ },
+ {
+  "id": "Steve",
+  "num": 18,
+  "name": "Steve Harrington",
+  "role": "survivor"
+ },
+ {
+  "id": "S45",
+  "num": 44,
+  "name": "Taurie Cain",
+  "role": "survivor"
+ },
+ {
+  "id": "S35",
+  "num": 34,
+  "name": "Thalita Lyra",
+  "role": "survivor"
+ },
+ {
+  "id": "K40",
+  "num": 268435495,
+  "name": "The Animatronic",
+  "role": "killer"
+ },
+ {
+  "id": "K26",
+  "num": 268435481,
+  "name": "The Artist",
+  "role": "killer"
+ },
+ {
+  "id": "K21",
+  "num": 268435476,
+  "name": "The Blight",
+  "role": "killer"
+ },
+ {
+  "id": "Cannibal",
+  "num": 268435464,
+  "name": "The Cannibal",
+  "role": "killer"
+ },
+ {
+  "id": "K25",
+  "num": 268435480,
+  "name": "The Cenobite",
+  "role": "killer"
+ },
+ {
+  "id": "Clown",
+  "num": 268435467,
+  "name": "The Clown",
+  "role": "killer"
+ },
+ {
+  "id": "K37",
+  "num": 268435492,
+  "name": "The Dark Lord",
+  "role": "killer"
+ },
+ {
+  "id": "Gunslinger",
+  "num": 268435474,
+  "name": "The Deathslinger",
+  "role": "killer"
+ },
+ {
+  "id": "Demogorgon",
+  "num": 268435472,
+  "name": "The Demogorgon",
+  "role": "killer"
+ },
+ {
+  "id": "Killer07",
+  "num": 268435462,
+  "name": "The Doctor",
+  "role": "killer"
+ },
+ {
+  "id": "K28",
+  "num": 268435483,
+  "name": "The Dredge",
+  "role": "killer"
+ },
+ {
+  "id": "K20",
+  "num": 268435475,
+  "name": "The Executioner",
+  "role": "killer"
+ },
+ {
+  "id": "K42",
+  "num": 268435497,
+  "name": "The First",
+  "role": "killer"
+ },
+ {
+  "id": "Ghostface",
+  "num": 268435471,
+  "name": "The Ghost Face",
+  "role": "killer"
+ },
+ {
+  "id": "K39",
+  "num": 268435494,
+  "name": "The Ghoul",
+  "role": "killer"
+ },
+ {
+  "id": "K34",
+  "num": 268435489,
+  "name": "The Good Guy",
+  "role": "killer"
+ },
+ {
+  "id": "Witch",
+  "num": 268435460,
+  "name": "The Hag",
+  "role": "killer"
+ },
+ {
+  "id": "HillBilly",
+  "num": 268435458,
+  "name": "The Hillbilly",
+  "role": "killer"
+ },
+ {
+  "id": "K38",
+  "num": 268435493,
+  "name": "The Houndmaster",
+  "role": "killer"
+ },
+ {
+  "id": "Bear",
+  "num": 268435463,
+  "name": "The Huntress",
+  "role": "killer"
+ },
+ {
+  "id": "K44",
+  "num": 268435499,
+  "name": "The Judgment",
+  "role": "killer"
+ },
+ {
+  "id": "K30",
+  "num": 268435485,
+  "name": "The Knight",
+  "role": "killer"
+ },
+ {
+  "id": "K41",
+  "num": 268435496,
+  "name": "The Krasue",
+  "role": "killer"
+ },
+ {
+  "id": "Legion",
+  "num": 268435469,
+  "name": "The Legion",
+  "role": "killer"
+ },
+ {
+  "id": "K36",
+  "num": 268435491,
+  "name": "The Lich",
+  "role": "killer"
+ },
+ {
+  "id": "K29",
+  "num": 268435484,
+  "name": "The Mastermind",
+  "role": "killer"
+ },
+ {
+  "id": "K24",
+  "num": 268435479,
+  "name": "The Nemesis",
+  "role": "killer"
+ },
+ {
+  "id": "Nightmare",
+  "num": 268435465,
+  "name": "The Nightmare",
+  "role": "killer"
+ },
+ {
+  "id": "Nurse",
+  "num": 268435459,
+  "name": "The Nurse",
+  "role": "killer"
+ },
+ {
+  "id": "Oni",
+  "num": 268435473,
+  "name": "The Oni",
+  "role": "killer"
+ },
+ {
+  "id": "K27",
+  "num": 268435482,
+  "name": "The Onryō",
+  "role": "killer"
+ },
+ {
+  "id": "Pig",
+  "num": 268435466,
+  "name": "The Pig",
+  "role": "killer"
+ },
+ {
+  "id": "Plague",
+  "num": 268435470,
+  "name": "The Plague",
+  "role": "killer"
+ },
+ {
+  "id": "Shape",
+  "num": 268435461,
+  "name": "The Shape",
+  "role": "killer"
+ },
+ {
+  "id": "K32",
+  "num": 268435487,
+  "name": "The Singularity",
+  "role": "killer"
+ },
+ {
+  "id": "K31",
+  "num": 268435486,
+  "name": "The Skull Merchant",
+  "role": "killer"
+ },
+ {
+  "id": "K43",
+  "num": 268435498,
+  "name": "The Slasher",
+  "role": "killer"
+ },
+ {
+  "id": "Spirit",
+  "num": 268435468,
+  "name": "The Spirit",
+  "role": "killer"
+ },
+ {
+  "id": "Chuckles",
+  "num": 268435456,
+  "name": "The Trapper",
+  "role": "killer"
+ },
+ {
+  "id": "K23",
+  "num": 268435478,
+  "name": "The Trickster",
+  "role": "killer"
+ },
+ {
+  "id": "K22",
+  "num": 268435477,
+  "name": "The Twins",
+  "role": "killer"
+ },
+ {
+  "id": "K35",
+  "num": 268435490,
+  "name": "The Unknown",
+  "role": "killer"
+ },
+ {
+  "id": "Bob",
+  "num": 268435457,
+  "name": "The Wraith",
+  "role": "killer"
+ },
+ {
+  "id": "K33",
+  "num": 268435488,
+  "name": "The Xenomorph",
+  "role": "killer"
+ },
+ {
+  "id": "S44",
+  "num": 43,
+  "name": "Trevor Belmont",
+  "role": "survivor"
+ },
+ {
+  "id": "S49",
+  "num": 48,
+  "name": "Vee Boonyasak",
+  "role": "survivor"
+ },
+ {
+  "id": "S34",
+  "num": 33,
+  "name": "Vittorio Toscano",
+  "role": "survivor"
+ },
+ {
+  "id": "Bill",
+  "num": 7,
+  "name": "William \"Bill\" Overbeck",
+  "role": "survivor"
+ },
+ {
+  "id": "S30",
+  "num": 29,
+  "name": "Yoichi Asakawa",
+  "role": "survivor"
+ },
+ {
+  "id": "Yui",
+  "num": 19,
+  "name": "Yui Kimura",
+  "role": "survivor"
+ },
+ {
+  "id": "Zarina",
+  "num": 20,
+  "name": "Zarina Kassir",
+  "role": "survivor"
+ }
+]

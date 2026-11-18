@@ -1,0 +1,18 @@
+/* Overlay pages. Transparent background: works as an app window and as an OBS browser source. */
+:root { color-scheme: dark; --c: #d7e3c5; --scale: 1; --plate: rgba(12, 18, 14, 0.72); }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+body { font-family: "Segoe UI", system-ui, sans-serif; color: var(--c); }
+#frame { height: 100%; display: flex; align-items: center; justify-content: center; border: 1px dashed transparent; border-radius: 8px; }
+body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba(12, 18, 14, 0.35); -webkit-app-region: drag; cursor: move; }
+#root { zoom: var(--scale); display: flex; gap: 10px; align-items: center; }
+.plate { background: var(--plate); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-radius: 8px; padding: 8px 14px; display: flex; gap: 16px; align-items: center; white-space: nowrap; }
+.col { display: flex; flex-direction: column; gap: 2px; }
+.lab { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.num { font-family: Consolas, ui-monospace, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 30px; line-height: 1; }
+.num.sm { font-size: 18px; }
+.dim { opacity: 0.5; }
+.rows { display: flex; flex-direction: column; gap: 4px; }
+.rows .plate { justify-content: space-between; padding: 5px 12px; }
+.done { color: #e58a6f; }
+.name { font-size: 15px; font-weight: 600; }

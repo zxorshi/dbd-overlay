@@ -31,7 +31,7 @@ Not built: party, live league tracking, friends, stat comparison. They need a se
 
 ## Status
 
-Developed and tested on Linux. On Windows, beside the game, these are untested: overlays over the game, hotkeys while the game is focused, map detection on real game frames, pass-through input.
+Developed and tested on Linux. On Windows, beside the game, these are untested: overlays over the game, hotkeys while the game is focused, map detection on real game frames, pass-through input. Checklist: `docs/WINDOWS-TEST.md`.
 
 ## Run from source
 
@@ -63,7 +63,6 @@ npm test
 | Map list (`data/maps.json`) | Derived from Hens' callouts list | |
 | Callout images | [Hens' Callouts](https://hens333.com/callouts), map art by Lethia, with work by Zexov, Broosley and Evo | Not shipped. Downloaded to the user's computer on request. They belong to their creators |
 | League presets | [Balanced by Daylight](https://balancedbydaylight.com) by Kyle Starr and contributors | Not shipped. Fetched on request |
-| Windows test checklist | `docs/WINDOWS-TEST.md` | |
 | Map detection approach | zxorshi/dbd-clock-overlay (MIT), H4RDC0RN/dbd-overlay, erktiky/DBDMap | |
 | Timer features | Modeled on Truueh's DBD 1v1 Timer (feature reference only, no code) | |
 

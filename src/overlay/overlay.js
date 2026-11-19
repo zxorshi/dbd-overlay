@@ -186,7 +186,7 @@ render.map = (s) => {
   if (isWindow && !s.map.locked) return s.overlays.map.locked ? '' : '<div class="plate"><span class="lab">Map callout: waiting for a map</span></div>';
   if (!m) return '<div class="plate"><span class="lab">Waiting for map</span></div>';
   const head = `<div class="plate slim"><span class="lab">${esc(m.realm)}</span><span class="name">${esc(m.name)}</span></div>`;
-  if ((s.calloutIds || []).includes(m.id)) return `<div class="mapbox"><img class="callout" src="/callout/${m.id}" alt="">${head}</div>`;
+  if ((s.calloutIds || []).includes(m.id)) return `<div class="mapbox"><img class="callout" src="/callout/${m.id}" alt=""></div>`;
   let marks = '';
   for (let i = 1; i <= 12; i++) { const a = ((i * 30 - 90) * Math.PI) / 180; marks += `<text x="${100 + 84 * Math.cos(a)}" y="${100 + 84 * Math.sin(a)}">${i}</text>`; }
   return `<div class="mapbox"><svg class="ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="96" fill="rgba(12,18,14,0.55)" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="central">${marks}</g></svg>${head}</div>`;

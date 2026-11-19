@@ -41,3 +41,5 @@ body.unlocked #frame::before { content: 'drag to move'; position: absolute; top:
 .sv i.on { background: currentColor; opacity: 1; }
 .sv.dead { color: #e58a6f; }
 .warn { color: #f0c05a; }
+.plate.bar { position: relative; overflow: hidden; min-width: 220px; }
+.plate.bar::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--pct); background: currentColor; opacity: 0.8; }

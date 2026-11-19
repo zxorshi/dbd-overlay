@@ -118,7 +118,8 @@ const VIEWS = {
     return ['Perk Timers', 'Tick the perks in play, then fire every armed timer with one hotkey. Each timer ends with its own tone.', `<div class="card">
       <h2>Timers (seconds)</h2><div class="list">${rows}</div>
       <div class="row"><button class="btn pri" ${A('perks.fireAll')}>Fire all armed ${key('perks.fireAll')}</button>
-        <button class="btn" ${A('perks.clear')}>Clear</button><button class="btn" ${A('perks.add')}>Add timer</button></div>
+        <button class="btn" ${A('perks.clear')}>Clear ${key('perks.clear')}</button></div>
+      <div class="row"><select id="pt-preset" style="width:auto" aria-label="Timer preset">${D.timerPresets.map((p, i) => opt(i, `${esc(p.name)} (${p.seconds} s)`, -1)).join('')}</select><button class="btn" data-form="preset">Add preset</button><button class="btn" ${A('perks.add')}>Add empty timer</button></div>
       <p class="note">Default durations come from community data and may not match the current patch. Edit them here. Timers start by hotkey only; nothing is read from the game.</p></div>`];
   },
   streak() {
@@ -247,6 +248,7 @@ const issuesHtml = (list, rs) => (!rs ? '<span class="note">No ruleset selected<
 const val = (id) => ($('#' + id) ? $('#' + id).value : '');
 const LEAGUES = { list: null, msg: '', bad: false };
 const FORMS = {
+  preset() { const p = D.timerPresets[Number(val('pt-preset'))]; if (p) api.act('perks.add', p); },
   async leagues() { LEAGUES.msg = 'Loading'; panel(true); const r = await api.leagues(); LEAGUES.list = r.list || null; LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Could not load: ' + r.error : ''; panel(true); },
   async league() { const p = val('lg-preset'); LEAGUES.msg = 'Importing'; panel(true); const r = await api.importLeague(p); LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Import failed: ' + r.error : 'Imported'; panel(true); },
   rules() { api.act('rules.import', { json: val('rs-json') }); },
@@ -310,10 +312,13 @@ Object.assign(VIEWS, {
     const sc = S.score; const c = sc.current; const d = S.derived.score;
     const bump = (f, label, max) => `<div class="slot"><span class="note">${label}</span><span class="big">${c[f]}<span class="note"> / ${max}</span></span>
       <div class="row"><button class="btn sm" ${A('score.bump', { field: f, delta: -1 })}>−</button><button class="btn sm pri" ${A('score.bump', { field: f, delta: 1 })}>+</button></div></div>`;
-    const hist = d.history.map((h, i) => `<tr><td>Set ${i + 1}</td>${h.games.map((g) => `<td>${esc(sc.teams[g.killerTeam])} as ${esc(cname(g.killer) || 'killer')}: ${g.stages} stages, ${g.gensLeft} gens left, ${g.kills} kills</td>`).join('')}<td>${h.winner === null ? 'Tie' : esc(sc.teams[h.winner])}</td></tr>`).join('');
+    const hist = d.history.map((h, i) => `<tr><td>${sc.mode === 'target' ? 'Game' : 'Set'} ${i + 1}</td>${h.games.map((g) => `<td>${esc(sc.teams[g.killerTeam])} as ${esc(cname(g.killer) || 'killer')}: ${g.stages} stages, ${g.gensLeft} gens left, ${g.kills} kills</td>`).join('')}<td>${h.winner === null ? 'Tie' : esc(sc.teams[h.winner])}</td></tr>`).join('');
     return ['Match Scoreboard', 'Broadcast scoreboard. A set is two games, one per team as killer. More hook stages wins, then more gens left, then more kills.', `<div class="card"><h2>Match</h2>
         <div class="row"><input type="text" style="width:170px" aria-label="Team 1" value="${esc(sc.teams[0])}" data-team="0"><span class="big">${d.sets[0]} : ${d.sets[1]}</span><input type="text" style="width:170px" aria-label="Team 2" value="${esc(sc.teams[1])}" data-team="1">
           <label class="row">Best of <select style="width:auto" ${B('score.set', 'bestOf')}>${[1, 3, 5, 7, 9].map((n) => opt(n, n, sc.bestOf)).join('')}</select></label></div>
+        <div class="row"><label class="row">Format <select style="width:auto" ${B('score.set', 'mode')}>${opt('mirror', 'Mirror: both teams play killer, results compared', sc.mode)}${opt('target', 'Target: killer must reach a win condition', sc.mode)}</select></label>
+          ${sc.mode === 'target' ? `<select style="width:auto" aria-label="Win condition" ${B('score.set', 'targetType')}>${opt('stages', 'Hook stages', sc.targetType)}${opt('4k', '4 kills with gens left', sc.targetType)}</select>
+            ${sc.targetType === '4k' ? `<label class="row">Gens left at least <input type="number" min="0" max="5" value="${sc.targetGens}" ${B('score.set', 'targetGens')}></label>` : `<label class="row">Stages needed <input type="number" min="1" max="12" value="${sc.targetStages}" ${B('score.set', 'targetStages')}></label>`}` : ''}</div>
         ${d.champion !== null ? `<p class="good">Winner: ${esc(sc.teams[d.champion])}</p>` : ''}</div>
       <div class="card"><h2>Current game</h2>
         <div class="row"><label class="row">Killer side <select style="width:auto" data-killerteam>${opt(0, esc(sc.teams[0]), c.killerTeam)}${opt(1, esc(sc.teams[1]), c.killerTeam)}</select></label>
@@ -324,6 +329,7 @@ Object.assign(VIEWS, {
             <div class="row"><button class="btn sm" ${A('score.hook', { i, delta: -1 })}>−</button><button class="btn sm pri" ${A('score.hook', { i, delta: 1 })}>Hook</button><button class="btn sm warn" ${A('score.hook', { i, dead: true })}>Dead</button></div></div>`).join('')}</div>
         <div class="row"><div class="slot"><span class="note">Hook stages</span><span class="big">${c.stages}<span class="note"> / 12</span></span></div>${bump('gensLeft', 'Gens left', 5)}<div class="slot"><span class="note">Kills</span><span class="big">${c.kills}<span class="note"> / 4</span></span></div></div>
         <div class="row"><button class="btn pri" ${A('score.endGame')}>End game</button><button class="btn" ${A('score.undoGame')}>Undo last game</button><button class="btn warn" ${A('score.reset')}>Reset match</button></div>
+        <div class="row"><span class="note">Disconnect</span><button class="btn sm" ${A('score.dc', { side: 'killer' })}>Killer left (0 gens left)</button><button class="btn sm" ${A('score.dc', { side: 'survivor' })}>Survivor left (12 stages, 4 kills)</button></div>
         <p class="note">Press Hook each time a survivor is hooked or reaches the next stage. Dead sets a survivor to 3 stages. Survivor names come from Lobby Perks.</p></div>
       ${hist ? `<div class="card"><h2>Sets</h2><table>${hist}</table></div>` : ''}`];
   },

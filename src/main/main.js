@@ -7,7 +7,7 @@ const { createDetector, createSession, buildCatalog, norm } = require('./detect'
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { defaultState, dispatch, merge, derive, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS } = require('./tools');
+const { defaultState, dispatch, merge, derive, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS, TIMER_PRESETS } = require('./tools');
 
 const ROOT = path.join(__dirname, '..', '..');
 const perks = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'perks.json'), 'utf8'));
@@ -261,7 +261,7 @@ app.whenReady().then(async () => {
   detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines });
   state.map.download = '';
   await serve();
-  ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), presets: CHALLENGE_PRESETS, maps, calloutDir, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
+  ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), presets: CHALLENGE_PRESETS, timerPresets: TIMER_PRESETS, maps, calloutDir, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
   ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else if (what === 'download') downloadCallouts(); else { scanCallouts(); broadcast(); } });
   ipcMain.on('detect', () => detector.scan(state.map.region));

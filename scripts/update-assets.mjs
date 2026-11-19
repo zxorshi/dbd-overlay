@@ -1,7 +1,7 @@
 // Downloads perk icons and character portraits from deadbydaylight.wiki.gg into assets/game/.
 // Game art is the property of Behaviour Interactive and is not covered by this project's MIT license.
 // Run: npm run update-assets
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 const UA = { 'User-Agent': 'dbd-overlay-asset-sync' };
 const get = async (u) => { for (let n = 0; n < 4; n++) { try { const r = await fetch(u, { headers: UA }); if (r.ok) return r; } catch { /* retry */ } await new Promise((r) => setTimeout(r, 500 * (n + 1))); } return null; };
 const json = async (u) => { const r = await get(u); try { return r ? await r.json() : {}; } catch { return {}; } };
@@ -44,12 +44,13 @@ const camel = (name) => name.replace(/&/g, 'And').replace(/[^A-Za-z0-9 ]/g, '').
   .map((w, i) => (i ? w[0].toUpperCase() + w.slice(1) : w[0].toLowerCase() + w.slice(1))).join('');
 const byId = Object.fromEntries(Object.entries(perks));
 const charById = Object.fromEntries(Object.values(chars).map((c) => [c.id, c]));
+const current = Object.fromEntries(JSON.parse(readFileSync('data/perks.json', 'utf8')).map((p) => [p.id, p.name]));
 const still = [];
 for (const j of jobs) {
   if (manifest[j.dir].includes(j.id)) continue;
   let url = null;
   if (j.dir === 'perks') {
-    const name = byId[j.id].name;
+    const name = current[j.id] || byId[j.id].name;
     const q = await json(wiki + 'prop=imageinfo&iiprop=url&iiurlwidth=128&titles=' + encodeURIComponent('File:IconPerks_' + camel(name) + '.png'));
     const pg = (Object.values(q.query?.pages ?? {})[0] ?? {});
     if (pg.imageinfo) url = pg.imageinfo[0].thumburl || pg.imageinfo[0].url;

@@ -51,6 +51,8 @@ function defaultState() {
     lobby: { survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
     score: {
       teams: ['Team A', 'Team B'], bestOf: 3, games: [],
+      // mirror: both teams play killer, results are compared. target: the killer must reach a win condition each game.
+      mode: 'mirror', targetType: 'stages', targetStages: 9, targetGens: 1,
       current: newGame(0),
     },
     stats: { matches: [] },
@@ -182,6 +184,13 @@ const actions = {
   'killerShuffle.resetPlayed'(s) { s.killerShuffle.played = []; },
 };
 
+// Durations from deadbydaylight.wiki.gg at the time of writing. Perk values change between patches: all are editable.
+const TIMER_PRESETS = [
+  { name: 'Hook stage', seconds: 70 }, { name: 'Endgame collapse', seconds: 120 }, { name: 'Unhook Endurance', seconds: 10 },
+  { name: 'Will to Live (DS)', seconds: 60 }, { name: 'Off the Record', seconds: 80 }, { name: 'Exhaustion', seconds: 40 },
+  { name: 'Corrupt Intervention', seconds: 120 }, { name: 'Pop Goes the Weasel', seconds: 45 },
+  { name: 'Grim Embrace (4 tokens)', seconds: 40 }, { name: 'No Holds Barred (Deadlock)', seconds: 25 },
+];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const SCORE_LIMITS = { stages: [0, 12], gensLeft: [0, 5], kills: [0, 4] };
 const CHALLENGE_PRESETS = {
@@ -237,7 +246,7 @@ Object.assign(actions, {
   'lobby.clear'(s) { s.lobby.survivors.forEach((v) => { v.perks = [null, null, null, null]; }); },
 
   // ---- match scoreboard
-  'score.set'(s, f) { if (f.bestOf) f.bestOf = Number(f.bestOf); Object.assign(s.score, f); },
+  'score.set'(s, f) { for (const k of ['bestOf', 'targetStages', 'targetGens']) if (k in f) f[k] = Number(f[k]) || 0; Object.assign(s.score, f); },
   'score.current'(s, f) { Object.assign(s.score.current, f); },
   'score.bump'(s, { field, delta, id }) {
     if (id === 'gen') { field = 'gensLeft'; delta = -1; } // hotkey form: score.bump:gen
@@ -253,6 +262,11 @@ Object.assign(actions, {
     const c = s.score.current; if (!c.hooks) c.hooks = [0, 0, 0, 0];
     c.hooks[i] = dead ? 3 : clamp(c.hooks[i] + delta, 0, 3);
     c.stages = c.hooks.reduce((a, b) => a + b, 0); c.kills = c.hooks.filter((h) => h === 3).length;
+  },
+  // Disconnect rulings used by DBD Arena: killer leaves = 0 gens left; a survivor leaves = 12 stages and 4 kills.
+  'score.dc'(s, { side }) {
+    const c = s.score.current;
+    if (side === 'killer') c.gensLeft = 0; else { c.hooks = [3, 3, 3, 3]; c.stages = 12; c.kills = 4; }
   },
   'score.undoGame'(s) { const g = s.score.games.pop(); if (g) s.score.current = g; },
   'score.reset'(s) { s.score.games = []; s.score.current = newGame(0); },
@@ -331,18 +345,26 @@ function teamIssues(survivors, rs, names) {
   return Object.entries(count).filter(([, n]) => n > limit).map(([p, n]) => `${names[p] || p} used ${n} times, limit ${limit}`);
 }
 // A set is two games, one per team as killer. More hook stages wins; then more gens left; then more kills.
+function killerWon(score, g) {
+  return score.targetType === '4k' ? g.kills === 4 && g.gensLeft >= score.targetGens : g.stages >= score.targetStages;
+}
 function scoreSummary(score) {
-  const sets = [0, 0]; const history = [];
-  for (let i = 0; i + 1 < score.games.length; i += 2) {
-    const a = score.games[i]; const b = score.games[i + 1];
-    const cmp = (a.stages - b.stages) || (a.gensLeft - b.gensLeft) || (a.kills - b.kills);
-    const winner = cmp > 0 ? a.killerTeam : cmp < 0 ? b.killerTeam : null;
-    if (winner !== null) sets[winner] += 1;
-    history.push({ winner, games: [a, b] });
+  const sets = [0, 0]; const history = []; const target = score.mode === 'target';
+  if (target) {
+    for (const g of score.games) { const winner = killerWon(score, g) ? g.killerTeam : (g.killerTeam ? 0 : 1); sets[winner] += 1; history.push({ winner, games: [g] }); }
+  } else {
+    for (let i = 0; i + 1 < score.games.length; i += 2) {
+      const a = score.games[i]; const b = score.games[i + 1];
+      const cmp = (a.stages - b.stages) || (a.gensLeft - b.gensLeft) || (a.kills - b.kills);
+      const winner = cmp > 0 ? a.killerTeam : cmp < 0 ? b.killerTeam : null;
+      if (winner !== null) sets[winner] += 1;
+      history.push({ winner, games: [a, b] });
+    }
   }
   const need = Math.floor(score.bestOf / 2) + 1;
   const champion = sets[0] >= need ? 0 : sets[1] >= need ? 1 : null;
-  return { sets, history, need, champion, pending: score.games.length % 2 === 1 ? score.games[score.games.length - 1] : null };
+  const goal = target ? (score.targetType === '4k' ? `4K with ${score.targetGens}+ gens left` : `${score.targetStages} hook stages`) : null;
+  return { sets, history, need, champion, goal, pending: !target && score.games.length % 2 === 1 ? score.games[score.games.length - 1] : null };
 }
 function statsSummary(matches) {
   const row = () => ({ played: 0, wins: 0, losses: 0, draws: 0 });
@@ -383,4 +405,4 @@ function merge(base, saved) {
   return out;
 }
 
-module.exports = { defaultState, dispatch, merge, slotMs, derive, scoreSummary, statsSummary, buildIssues, teamIssues, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS };
+module.exports = { defaultState, dispatch, merge, slotMs, derive, scoreSummary, statsSummary, buildIssues, teamIssues, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS, TIMER_PRESETS };

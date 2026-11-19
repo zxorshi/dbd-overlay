@@ -40,7 +40,8 @@ const render = {
     const rows = s.perks.list.filter((p) => p.armed || p.endsAt).map((p) => {
       const left = p.endsAt ? (p.endsAt - now) / 1000 : null;
       const txt = left === null ? 'armed' : left > 0 ? left.toFixed(1) : 'done';
-      return `<div class="plate ${left !== null && left <= 0 ? 'done' : ''}"><span class="lab">${esc(p.name)}</span><span class="num sm">${txt}</span></div>`;
+      const pct = left === null ? 100 : Math.max(0, Math.min(100, (left / p.seconds) * 100));
+      return `<div class="plate bar ${left !== null && left <= 0 ? 'done' : left !== null && left <= 5 ? 'warn' : ''}" style="--pct:${pct.toFixed(1)}%"><span class="lab">${esc(p.name)}</span><span class="num sm">${txt}</span></div>`;
     });
     return `<div class="rows">${rows.join('')}</div>`;
   },
@@ -133,6 +134,7 @@ Object.assign(render, {
       <div class="col"><span class="lab">Stages</span><span class="num sm">${c.stages}/12</span></div>
       <div class="col"><span class="lab">Gens left</span><span class="num sm">${c.gensLeft}</span></div>
       <div class="col"><span class="lab">Kills</span><span class="num sm">${c.kills}</span></div>
+      ${d.goal ? `<div class="col"><span class="lab">Killer needs</span><span class="name">${esc(d.goal)}</span></div>` : ''}
       ${d.pending ? `<div class="col"><span class="lab">To beat</span><span class="num sm">${d.pending.stages}</span></div>` : ''}
       ${d.champion !== null ? `<div class="col"><span class="lab ok">Winner</span><span class="name">${esc(sc.teams[d.champion])}</span></div>` : ''}</div>`;
   },

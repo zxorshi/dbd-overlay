@@ -139,3 +139,10 @@ test('stats entry can move streak and challenge', () => {
   dispatch(s, 'stats.add', { result: 'win', streak: true, challenge: true }, ctx(1));
   assert.deepEqual([s.streak.current, s.challenge.wins, s.stats.matches.length], [1, 1, 1]);
 });
+
+test('scoreboard target mode: killer needs the win condition', () => {
+  const s = defaultState(); dispatch(s, 'score.set', { mode: 'target', targetStages: '9' }, ctx(0));
+  dispatch(s, 'score.current', { stages: 9 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
+  dispatch(s, 'score.current', { stages: 8 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
+  assert.deepEqual(scoreSummary(s.score).sets, [2, 0]);
+});

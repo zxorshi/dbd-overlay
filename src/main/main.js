@@ -1,6 +1,7 @@
 // Main process: state store, overlay windows, global hotkeys, local server for overlays and OBS.
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell } = require('electron');
-const { createDetector, norm } = require('./detect');
+const { execFile } = require('node:child_process');
+const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,7 +12,9 @@ const perks = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'perks.json'), 
 const characters = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'characters.json'), 'utf8'));
 let art = { perks: [], portraits: [] };
 try { art = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'game', 'manifest.json'), 'utf8')); } catch { /* no art downloaded */ }
-const maps = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'maps.json'), 'utf8'));
+const catalog = buildCatalog(JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'maps.json'), 'utf8')));
+const maps = catalog.map(({ id, realm, name, family }) => ({ id, realm, name, family }));
+const session = createSession(catalog);
 let callouts = {}; // map id -> image file path
 let calloutDir = '';
 let detector = null;
@@ -34,20 +37,47 @@ function save() {
 }
 
 // ---- map callouts ----------------------------------------------------------
-// Image packs: any .png/.jpg/.webp in the callouts folder (or one level down) named after a map.
+// Callout images are not shipped. They live in the user's callouts folder (or ./callouts next to the app),
+// either at the catalog path (Realm/Map.webp) or as any image file named after the map.
+const IMAGE_BASE_URL = 'https://hens333.com/img/dbd/callouts/';
 function scanCallouts() {
   callouts = {};
-  const byName = Object.fromEntries(maps.map((m) => [norm(m.name), m.id]));
-  const visit = (dir, depth) => {
-    let entries = []; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      const full = path.join(dir, e.name);
-      if (e.isDirectory() && depth < 2) visit(full, depth + 1);
-      else if (/\.(png|jpe?g|webp)$/i.test(e.name)) { const id = byName[norm(e.name.replace(/\.[^.]+$/, ''))]; if (id && !callouts[id]) callouts[id] = full; }
-    }
-  };
-  visit(calloutDir, 0);
+  const roots = [calloutDir, path.join(ROOT, 'callouts')];
+  const byName = {};
+  for (const m of catalog) for (const a of m.aliases) byName[a] = byName[a] || m.id;
+  for (const root of roots) {
+    for (const m of catalog) { const f = path.join(root, m.image); if (!callouts[m.id] && fs.existsSync(f)) callouts[m.id] = f; }
+    const visit = (dir, depth) => {
+      let entries = []; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory() && depth < 2) visit(full, depth + 1);
+        else if (/\.(png|jpe?g|webp|gif)$/i.test(e.name)) { const id = byName[norm(e.name.replace(/\.[^.]+$/, ''))]; if (id && !callouts[id]) callouts[id] = full; }
+      }
+    };
+    visit(root, 0);
+  }
 }
+let downloading = false;
+async function downloadCallouts() {
+  if (downloading) return; downloading = true;
+  const missing = catalog.filter((m) => !callouts[m.id]); let done = 0; let failed = 0;
+  for (const m of missing) {
+    state.map.download = `Downloading ${done + 1} of ${missing.length}`; broadcast();
+    try {
+      const res = await fetch(IMAGE_BASE_URL + m.image.split('/').map(encodeURIComponent).join('/'));
+      if (!res.ok) throw new Error(String(res.status));
+      const file = path.join(calloutDir, m.image);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+    } catch { failed += 1; }
+    done += 1;
+  }
+  downloading = false; scanCallouts();
+  state.map.download = failed ? `${failed} of ${missing.length} images could not be downloaded` : '';
+  broadcast();
+}
+
 async function grabScreen([x, y, w, h]) {
   const { size } = screen.getPrimaryDisplay();
   const width = Math.min(1920, size.width); const height = Math.round((width * size.height) / size.width);
@@ -56,18 +86,37 @@ async function grabScreen([x, y, w, h]) {
   const s = img.getSize();
   return img.crop({ x: Math.round(x * s.width), y: Math.round(y * s.height), width: Math.round(w * s.width), height: Math.round(h * s.height) }).toPNG();
 }
+
+// Is the game running? Process list only (tasklist); the game process itself is never opened.
+let gameRunning = process.platform !== 'win32';
+function checkGame() {
+  if (process.platform !== 'win32') return;
+  execFile('tasklist', ['/FO', 'CSV', '/NH'], { windowsHide: true, maxBuffer: 4 << 20 }, (err, out) => {
+    const running = !err && /"deadbydaylight[^"]*shipping[^"]*\.exe"/i.test(out);
+    if (running === gameRunning) return;
+    gameRunning = running;
+    if (!running && state.map.locked) { state.map.locked = false; session.reset(); }
+    syncDetector(); broadcast();
+  });
+}
 function syncDetector() {
   if (!detector) return;
-  if (state.map.auto) detector.start(state.map.region); else detector.stop();
+  const on = state.map.auto && (gameRunning || !state.settings.onlyWhenGameRuns);
+  if (on) detector.start(state.map.region, state.settings.scanSeconds * 1000); else detector.stop();
+  // The app window lists every map name; keep it out of screen capture so it is never read as the game's map.
+  if (mainWin && !mainWin.isDestroyed()) mainWin.setContentProtection(Boolean(state.map.auto));
 }
-function onDetect({ hit, text, error }) {
-  state.map.lastText = text; state.map.lastError = error || ''; state.map.lastScore = hit ? hit.score : null;
-  if (hit) state.map.current = hit.id;
-  broadcast(); save();
+function onLines(lines, error) {
+  state.map.lastText = lines.join(' | ').slice(0, 300); state.map.lastError = error || '';
+  const ev = session.onLines(lines, { id: state.map.current, locked: state.map.locked }, Date.now());
+  if (ev && ev.lock) { state.map.current = ev.lock; state.map.locked = true; }
+  if (ev && ev.unlock) state.map.locked = false;
+  broadcast(); if (ev) save();
 }
 
 function broadcast() {
   state.calloutIds = Object.keys(callouts);
+  state.gameRunning = gameRunning;
   state.derived = derive(state, perks);
   const json = JSON.stringify(state);
   if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('state', state);
@@ -75,10 +124,11 @@ function broadcast() {
 }
 
 function act(name, payload) {
-  const ok = dispatch(state, name, payload, { now: Date.now(), perks, characters, random: Math.random });
+  const ok = dispatch(state, name, payload, { now: Date.now(), perks, characters, catalog, random: Math.random });
   if (!ok) return;
   if (name.startsWith('hotkey.')) registerHotkeys();
-  if (name === 'map.set') syncDetector();
+  if (name.startsWith('map.')) session.reset();
+  if (name.startsWith('map.') || name === 'settings.set') syncDetector();
   syncOverlayWindows();
   broadcast();
   save();
@@ -92,7 +142,7 @@ function syncOverlayWindows() {
     if (!o.open) { if (win) { win.destroy(); overlayWins.delete(id); } continue; }
     if (!win) {
       win = new BrowserWindow({
-        x: o.x, y: o.y, width: o.w, height: o.h,
+        x: o.x, y: o.y, width: o.w, height: o.h, show: false,
         frame: false, transparent: true, resizable: true, skipTaskbar: true, hasShadow: false,
         alwaysOnTop: true, focusable: false, fullscreenable: false, minWidth: 60, minHeight: 40,
         webPreferences: { contextIsolation: true },
@@ -114,6 +164,8 @@ function syncOverlayWindows() {
     // The crosshair never takes mouse input. Other overlays take it only while unlocked.
     win.setIgnoreMouseEvents(id === 'crosshair' || o.locked);
     win.setOpacity(o.opacity);
+    win.setContentProtection(Boolean(state.settings.hideFromCapture));
+    if (state.settings.overlaysHidden) win.hide(); else if (!win.isVisible()) win.showInactive();
   }
 }
 function centerCrosshair(win) {
@@ -179,16 +231,20 @@ function serve() {
 }
 
 // ---- app -------------------------------------------------------------------
+if (!app.requestSingleInstanceLock()) app.quit();
+app.on('second-instance', () => { if (mainWin) { if (mainWin.isMinimized()) mainWin.restore(); mainWin.focus(); } });
+
 app.whenReady().then(async () => {
   load();
   calloutDir = path.join(app.getPath('userData'), 'callouts');
   fs.mkdirSync(calloutDir, { recursive: true });
   scanCallouts();
-  detector = createDetector({ maps, cacheDir: app.getPath('userData'), grab: grabScreen, onResult: onDetect });
+  detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines });
+  state.map.download = '';
   await serve();
   ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), presets: CHALLENGE_PRESETS, maps, calloutDir, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
-  ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else { scanCallouts(); broadcast(); } });
+  ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else if (what === 'download') downloadCallouts(); else { scanCallouts(); broadcast(); } });
   ipcMain.on('detect', () => detector.scan(state.map.region));
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
@@ -200,6 +256,7 @@ app.whenReady().then(async () => {
   mainWin.on('closed', () => app.quit());
   registerHotkeys();
   syncOverlayWindows();
+  checkGame(); setInterval(checkGame, 5000);
   syncDetector();
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());

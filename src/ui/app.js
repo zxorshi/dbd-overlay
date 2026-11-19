@@ -14,12 +14,13 @@ const TOOLS = [
   { g: 'Compete', id: 'challenge', name: 'Challenges' },
   { g: 'Online', id: 'league', name: 'My League' },
   { g: 'Online', id: 'party', name: 'Party', soon: true },
-  { g: 'App', id: 'settings', name: 'Hotkeys' },
+  { g: 'App', id: 'settings', name: 'Settings' },
 ];
 const HOTKEY_LABELS = {
   'timer.toggle': 'Timer: start / stop', 'timer.switch': 'Timer: switch player', 'timer.reset': 'Timer: reset',
   'perks.fireAll': 'Perk timers: fire all armed', 'streak.win': 'Streak: win', 'streak.loss': 'Streak: loss',
   'perkShuffle.roll': 'Perk shuffle: roll', 'killerShuffle.roll': 'Killer shuffle: roll', 'overlays.toggleLock': 'Overlays: lock / unlock all',
+  'overlays.toggleAll': 'Overlays: show / hide all', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
 };
 
 let S = null; let D = null; let cur = 'timer';
@@ -135,9 +136,13 @@ const VIEWS = {
     const rows = Object.entries(HOTKEY_LABELS).map(([a, label]) => `<div class="result"><span>${label}</span>
       <span class="row"><input type="text" style="width:150px" aria-label="${label}" value="${esc(S.hotkeys[a] || '')}" placeholder="none" data-hotkey="${a}">
       ${(S.hotkeysFailed || []).includes(S.hotkeys[a]) ? '<span class="bad">not registered</span>' : ''}</span></div>`).join('');
-    return ['Hotkeys', 'Global keys, active while the game is focused.', `<div class="card"><h2>Bindings</h2><div class="list">${rows}</div>
+    return ['Settings', 'Global hotkeys and overlay options.', `<div class="card"><h2>Bindings</h2><div class="list">${rows}</div>
       <p class="note">Format examples: <kbd>F1</kbd> <kbd>Alt+1</kbd> <kbd>Ctrl+Shift+T</kbd> <kbd>num1</kbd>. Leave empty for none. Press Enter to apply.</p>
-      <p class="note">A bound key is taken by this app and does not reach the game.</p></div>`];
+      <p class="note">A bound key is taken by this app and does not reach the game.</p></div>
+      <div class="card"><h2>Overlays</h2>
+        <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
+        <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
+        <label><input type="checkbox" ${S.settings.overlaysHidden ? 'checked' : ''} ${B('settings.set', 'overlaysHidden')}> Hide all overlays ${key('overlays.toggleAll')}</label></div>`];
   },
 };
 
@@ -221,6 +226,7 @@ const FORMS = {
   export() { api.copy(JSON.stringify(S.stats.matches)); },
   member() { api.act('league.add', { name: val('lg-name'), role: val('lg-role'), team: val('lg-team') }); panel(true); },
   folder() { api.callouts('open'); },
+  download() { api.callouts('download'); },
   rescan() { api.callouts('scan'); },
   detect() { api.detect(); },
 };
@@ -320,25 +326,38 @@ document.addEventListener('change', (e) => {
   else if (t.dataset.lobbybuild && t.value) { api.act('lobby.loadBuild', { i: Number(t.dataset.lobbybuild), id: t.value }); t.blur(); }
   else if (t.dataset.team) { const teams = [...S.score.teams]; teams[Number(t.dataset.team)] = t.value; api.act('score.set', { teams }); }
   else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
+  else if ('mappick' in t.dataset) { api.act('map.pick', { id: t.value }); t.blur(); }
   else if (t.id === 'st-role') S._statRole = t.value;
 });
 
 VIEWS.map = () => {
   const m = S.map; const realms = [...new Set(D.maps.map((x) => x.realm))];
   const has = (id) => (S.calloutIds || []).includes(id);
+  const cur = D.maps.find((x) => x.id === m.current);
+  const fam = cur ? D.maps.filter((x) => x.family === cur.family) : [];
   const opts = opt('', 'No map', m.current || '') + realms.map((r) => `<optgroup label="${esc(r)}">${D.maps.filter((x) => x.realm === r).map((x) => opt(x.id, esc(x.name) + (has(x.id) ? '' : ' (no image)'), m.current)).join('')}</optgroup>`).join('');
-  return ['Map Callouts', 'Clock callouts for the current map: 12 at the top, numbers run clockwise.', `<div class="card"><h2>Map</h2>
-      <div class="row"><select style="width:auto" aria-label="Map" ${B('map.set', 'current')}>${opts}</select></div>
-      <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${B('map.set', 'auto')}> Detect map from the screen</label>
-        <label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
+  const missing = D.maps.length - (S.calloutIds || []).length;
+  const status = !m.auto ? 'Detection is off. Pick a map below.'
+    : m.locked && cur ? `Locked on ${esc(cur.name)}. Unlocks at the end-of-match screen.`
+      : S.gameRunning ? 'Waiting for the next map name on screen.' : 'Waiting for Dead by Daylight to start.';
+  return ['Map Callouts', 'Clock callouts for the current map: 12 at the top, numbers run clockwise. M = main building, S = shack.', `<div class="card"><h2>Current map</h2>
+      <p class="${m.locked ? 'good' : 'note'}">${status}</p>
+      <div class="row"><select style="width:auto" aria-label="Map" data-mappick>${opts}</select>
+        ${fam.length > 1 ? `<button class="btn" ${A('map.nextVariant')}>Next variant (${fam.indexOf(cur) + 1} of ${fam.length}) ${key('map.nextVariant')}</button>` : ''}
+        ${cur ? `<button class="btn" ${A('map.toggleLock')}>${m.locked ? 'Unlock' : 'Lock'} ${key('map.toggleLock')}</button>` : ''}</div></div>
+    <div class="card"><h2>Detection</h2>
+      <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${B('map.set', 'auto')}> Detect the map from the screen</label>
+        <label><input type="checkbox" ${S.settings.onlyWhenGameRuns ? 'checked' : ''} ${B('settings.set', 'onlyWhenGameRuns')}> Only while the game is running</label></div>
+      <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
+        <label class="row">Every <input type="number" min="1" max="10" value="${S.settings.scanSeconds}" ${B('settings.set', 'scanSeconds')}> s</label>
         <button class="btn" data-form="detect">Read screen now</button></div>
       ${m.lastError ? `<p class="bad">${esc(m.lastError)}</p>` : ''}
-      <p class="note">Detection reads the map name shown when a trial loads. Run the game in borderless or windowed mode. Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.replace(/\s+/g, ' ').slice(0, 140))}</span>` : 'none'}${m.lastScore ? ` (match ${Math.round(m.lastScore * 100)}%)` : ''}</p></div>
-    <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length} maps</h2>
-      <p class="note">Put images in the callouts folder, named after the map, for example <kbd>Coal Tower.png</kbd>. PNG, JPG or WebP. Subfolders are read too.</p>
-      <div class="row"><button class="btn" data-form="folder">Open callouts folder</button><button class="btn" data-form="rescan">Rescan</button></div>
-      <p class="url">${esc(D.calloutDir)}</p>
-      <p class="note">No callout images ship with the app. A map without an image shows a plain clock ring.</p></div>`];
+      <p class="note">Reads the map name shown when a trial loads. The game must run in borderless or windowed mode. The same map must be read twice in a row before it locks. Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
+    <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length}</h2>
+      <div class="row">${missing ? `<button class="btn pri" data-form="download">Download ${missing} images from hens333.com</button>` : ''}
+        <button class="btn" data-form="folder">Open callouts folder</button><button class="btn" data-form="rescan">Rescan</button></div>
+      ${m.download ? `<p class="note">${esc(m.download)}</p>` : ''}
+      <p class="note">Images are Hens' callouts (hens333.com/callouts), map art by Lethia. They belong to their creators and are downloaded to your computer, not shipped with the app. Your own images also work: name the file after the map, for example <kbd>Coal Tower.png</kbd>.</p></div>`];
 };
 
 const ROLES = { owner: 'Owner', admin: 'Admin', referee: 'Referee', caster: 'Caster', player: 'Player' };

@@ -29,5 +29,7 @@ body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba
 .who { min-width: 90px; }
 .rule { font-size: 13px; }
 .mapbox { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.callout { max-width: 380px; max-height: 340px; border-radius: 8px; }
+.callout { border-radius: 8px; display: block; }
 .ring { width: 260px; height: 260px; }
+.plate.slim { padding: 3px 10px; gap: 8px; }
+.callout { max-width: 96vw; max-height: 84vh; }

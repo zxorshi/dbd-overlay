@@ -89,11 +89,24 @@ test('stats: win rate per character', () => {
   assert.equal(sum.by[0].key, 'B');
 });
 
-const { matchMap } = require('../src/main/detect');
-const maps = require('../data/maps.json');
-test('map match: tolerates OCR noise, rejects unrelated text', () => {
-  const id = (name) => maps.find((m) => m.name === name).id;
-  assert.equal(matchMap('THE MACMILLAN ESTATE\nC0AL TOWER', maps).id, id('Coal Tower'));
-  assert.equal(matchMap('autohaven wreckers - Blood Lodqe', maps).id, id('Blood Lodge'));
-  assert.equal(matchMap('Repair generators\nEscape the trial', maps), null);
+const { matchMap, buildCatalog, createSession } = require('../src/main/detect');
+const catalog = buildCatalog(require('../data/maps.json'));
+test('map match: exact, variants, strict alias, OCR typo', () => {
+  assert.equal(matchMap(['THE MACMILLAN ESTATE', 'COAL TOWER'], catalog).name, 'Coal Tower');
+  assert.equal(matchMap(['Coal Tower II'], catalog).name, 'Coal Tower II');
+  assert.equal(matchMap(['Leave the game'], catalog), null);
+  assert.equal(matchMap(['THE GAME'], catalog).name, 'The Game');
+  assert.equal(matchMap(['Azarovs Restinq Place'], catalog).name, "Azarov's Resting Place");
+  assert.equal(matchMap(['Repair generators', 'Escape the trial'], catalog), null);
+});
+test('map session: locks after two reads, unlocks at scoreboard, cooldown blocks re-lock', () => {
+  const s = createSession(catalog); const cur = { id: null, locked: false };
+  assert.equal(s.onLines(['Blood Lodge'], cur, 0), null);
+  const ev = s.onLines(['Blood Lodge'], cur, 2000);
+  assert.ok(ev.lock); cur.id = ev.lock; cur.locked = true;
+  assert.deepEqual(s.onLines(['SCOREBOARD', 'Blood Lodge'], cur, 60000), { unlock: true }); cur.locked = false;
+  assert.equal(s.onLines(['Blood Lodge'], cur, 62000), null);
+  assert.equal(s.onLines(['Blood Lodge'], cur, 64000), null);
+  s.onLines(['Gas Heaven'], cur, 90000);
+  assert.ok(s.onLines(['Gas Heaven'], cur, 92000).lock);
 });

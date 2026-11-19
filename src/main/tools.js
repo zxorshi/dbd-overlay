@@ -16,7 +16,8 @@ function defaultState() {
     hotkeys: {
       'timer.toggle': 'F1', 'timer.switch': 'F2', 'timer.reset': 'F3',
       'perks.fireAll': 'F4', 'streak.win': '', 'streak.loss': '',
-      'perkShuffle.roll': '', 'killerShuffle.roll': '', 'overlays.toggleLock': 'F8',
+      'perkShuffle.roll': '', 'killerShuffle.roll': '', 'overlays.toggleLock': 'F10', 'overlays.toggleAll': 'F8',
+      'map.nextVariant': 'F9', 'map.toggleLock': 'F11',
     },
     timer: {
       layout: 'dual', // single | dual | compact
@@ -49,7 +50,8 @@ function defaultState() {
     stats: { matches: [] },
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
     league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
-    map: { current: null, auto: false, region: 'full', lastText: '', lastScore: null, lastError: '' },
+    map: { current: null, locked: false, auto: true, region: 'full', lastText: '', lastError: '', download: '' },
+    settings: { hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
   };
 }
 
@@ -239,6 +241,16 @@ Object.assign(actions, {
 
   // ---- map callouts
   'map.set'(s, f) { Object.assign(s.map, f); },
+  // Picking a map by hand is an explicit choice, so it locks at once.
+  'map.pick'(s, { id }) { s.map.current = id || null; s.map.locked = Boolean(id); },
+  'map.toggleLock'(s) { if (s.map.current) s.map.locked = !s.map.locked; },
+  'map.nextVariant'(s, _p, { catalog }) {
+    const cur = catalog.find((m) => m.id === s.map.current); if (!cur) return;
+    const fam = catalog.filter((m) => m.family === cur.family);
+    s.map.current = fam[(fam.indexOf(cur) + 1) % fam.length].id;
+  },
+  'settings.set'(s, f) { Object.assign(s.settings, f); },
+  'overlays.toggleAll'(s) { s.settings.overlaysHidden = !s.settings.overlaysHidden; },
 
   // ---- challenges
   'challenge.set'(s, f) { Object.assign(s.challenge, f); },

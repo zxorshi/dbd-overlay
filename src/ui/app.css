@@ -45,7 +45,7 @@ input[type="checkbox"] { accent-color: var(--moss); width: 16px; height: 16px; }
 .mid { font-family: var(--mono); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .slot { flex: 1; min-width: 150px; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
 .slot.active { border-color: var(--moss); }
-.preview { height: 170px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: linear-gradient(180deg, #25332b 0%, #18211b 60%, #101511 100%); }
+.preview { height: 240px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; background: linear-gradient(180deg, #25332b 0%, #18211b 60%, #101511 100%); }
 .preview iframe { width: 100%; height: 100%; border: 0; }
 .url { font-family: var(--mono); font-size: 12px; color: var(--bark); overflow-wrap: anywhere; }
 .note { color: var(--mute); font-size: 13px; margin: 0; }

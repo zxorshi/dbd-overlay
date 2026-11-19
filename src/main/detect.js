@@ -1,8 +1,29 @@
 // Map detection by reading text on screen. No game memory is read; this only looks at pixels.
-// Approach follows open source tools (H4RDC0RN/dbd-overlay, erktiky/DBDMap): OCR, then fuzzy match to map names.
+// Catalog matching and the lock / unlock session are ported from zxorshi/dbd-clock-overlay (MIT).
 const path = require('node:path');
 
 const norm = (s) => String(s).toLowerCase().replace(/[’'`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const NUMERAL = /\s+(i{1,3}|iv|v|[1-5])$/;
+// Aliases that are ordinary phrases only count when they are the whole line ("Leave the game" must not match).
+const STRICT = new Set(['the game']);
+const EXTRA = {
+  'Badham/Preschool4.webp': ['Preschool IV'],
+  'Raccoon City/Rpd East Wing.webp': ['RPD East Wing'],
+  'Raccoon City/Rpd West Wing.webp': ['RPD West Wing'],
+  'Other/Hawkins.webp': ['Hawkins National Laboratory'],
+};
+const END_SCREEN = /^\s*(continue|scoreboard|match\s*result)\s*$/i;
+const END_COOLDOWN = 20000; // the scoreboard can show the map name: ignore map names for a while after it
+const CONFIRM_SCANS = 2;
+
+function buildCatalog(raw) {
+  return raw.map((m) => {
+    const names = [...m.names, ...(EXTRA[m.image] || [])];
+    const aliases = [...new Set(names.map(norm).filter((n) => n.length >= 5))].sort((a, b) => b.length - a.length);
+    return { ...m, aliases, family: m.realm + '/' + norm(m.name).replace(NUMERAL, '') };
+  });
+}
+const variants = (catalog, m) => catalog.filter((x) => x.family === m.family);
 
 function distance(a, b) {
   const row = Array.from({ length: b.length + 1 }, (_, i) => i);
@@ -16,30 +37,63 @@ function distance(a, b) {
   }
   return row[b.length];
 }
-const ratio = (a, b) => (a.length || b.length ? 1 - distance(a, b) / Math.max(a.length, b.length) : 0);
-
-// Returns { id, score } for the best map name found in the text, or null below the threshold.
-function matchMap(text, maps, threshold = 0.84) {
-  const lines = String(text).split(/\n+/).map(norm).filter((l) => l.length >= 4);
-  let best = null;
-  for (const m of maps) {
-    const name = norm(m.name); const words = name.split(' ').length;
-    for (const line of lines) {
-      const tokens = line.split(' ');
-      // Compare the name against every run of the same number of words in the line.
-      for (let i = 0; i + words <= tokens.length; i++) {
-        const score = ratio(tokens.slice(i, i + words).join(' '), name);
-        if (score >= threshold && (!best || score > best.score || (score === best.score && name.length > best.len))) best = { id: m.id, score, len: name.length };
-      }
-    }
+// Best similarity of `alias` against any same-word-count window of `line`.
+function partial(alias, line) {
+  const n = alias.split(' ').length; const t = line.split(' '); let best = 0;
+  for (let i = 0; i + n <= t.length; i++) {
+    const w = t.slice(i, i + n).join(' ');
+    best = Math.max(best, 1 - distance(w, alias) / Math.max(w.length, alias.length));
   }
-  return best && { id: best.id, score: Math.round(best.score * 100) / 100 };
+  return best;
+}
+const wordHit = (alias, line) => (' ' + line + ' ').includes(' ' + alias + ' ');
+
+// Returns the catalog entry whose name appears in the text lines, or null.
+function matchMap(lines, catalog) {
+  const ls = lines.map(norm).filter(Boolean);
+  let best = null; let bestLen = 0;
+  for (const line of ls) for (const m of catalog) for (const a of m.aliases) {
+    const hit = STRICT.has(a) ? line === a : wordHit(a, line);
+    if (hit && a.length > bestLen) { best = m; bestLen = a.length; }
+  }
+  if (best) return best;
+  let bestScore = 0;
+  for (const line of ls) for (const m of catalog) for (const a of m.aliases) {
+    if (a.length < 10 || STRICT.has(a)) continue;
+    const score = partial(a, line);
+    if (score >= 0.88 && score > bestScore) { best = m; bestScore = score; }
+  }
+  if (best) {
+    const nums = new Set(ls.flatMap((l) => l.split(' ')).filter((t) => /^(i{1,3}|iv|v|[1-5])$/.test(t)));
+    for (const v of variants(catalog, best)) { const s = norm(v.name).match(NUMERAL); if (s && nums.has(s[1])) return v; }
+  }
+  return best;
+}
+
+// Lock onto a map when its name is read in consecutive scans; unlock at the end-of-match screen.
+function createSession(catalog) {
+  let candidate = null; let hits = 0; let ignoreUntil = 0;
+  return {
+    reset() { candidate = null; hits = 0; },
+    // `cur` = { id, locked }. Returns { lock: id } | { unlock: true } | null.
+    onLines(lines, cur, now) {
+      if (lines.some((l) => END_SCREEN.test(l))) { ignoreUntil = now + END_COOLDOWN; candidate = null; hits = 0; return cur.locked ? { unlock: true } : null; }
+      if (cur.locked || now < ignoreUntil) return null;
+      let m = matchMap(lines, catalog);
+      if (!m) { candidate = null; hits = 0; return null; }
+      // A detected base name keeps the variant picked earlier ("Coal Tower" keeps "Coal Tower II").
+      const prev = catalog.find((x) => x.id === cur.id);
+      if (prev && prev.family === m.family && m === variants(catalog, m)[0]) m = prev;
+      hits = m === candidate ? hits + 1 : 1; candidate = m;
+      return hits >= CONFIRM_SCANS ? { lock: m.id } : null;
+    },
+  };
 }
 
 // Crops applied before OCR, as fractions of the frame: [x, y, width, height].
 const REGIONS = { full: [0, 0, 1, 1], bottomLeft: [0, 0.5, 0.5, 0.5], bottom: [0, 0.6, 1, 0.4], center: [0.2, 0.3, 0.6, 0.4] };
 
-function createDetector({ maps, cacheDir, grab, onResult }) {
+function createDetector({ cacheDir, grab, onLines }) {
   let worker = null; let timer = null; let busy = false;
   async function recognize(png) {
     if (!worker) {
@@ -50,24 +104,19 @@ function createDetector({ maps, cacheDir, grab, onResult }) {
       });
     }
     const { data } = await worker.recognize(png);
-    return data.text;
+    return data.text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   }
   async function scan(region) {
-    if (busy) return null; busy = true;
-    try {
-      const png = await grab(REGIONS[region] || REGIONS.full);
-      const text = png ? await recognize(png) : '';
-      const hit = matchMap(text, maps);
-      onResult({ hit, text: text.slice(0, 400) });
-      return hit;
-    } catch (err) { onResult({ hit: null, text: '', error: String(err.message || err) }); return null; } finally { busy = false; }
+    if (busy) return; busy = true;
+    try { const png = await grab(REGIONS[region] || REGIONS.full); onLines(png ? await recognize(png) : [], null); }
+    catch (err) { onLines([], String(err.message || err)); } finally { busy = false; }
   }
   return {
     scan, recognize,
-    start(region, ms = 3000) { this.stop(); timer = setInterval(() => scan(region), ms); },
+    start(region, ms = 2000) { this.stop(); timer = setInterval(() => scan(region), ms); },
     stop() { clearInterval(timer); timer = null; },
     async close() { this.stop(); if (worker) await worker.terminate(); worker = null; },
   };
 }
 
-module.exports = { matchMap, createDetector, norm, REGIONS };
+module.exports = { buildCatalog, variants, matchMap, createSession, createDetector, norm, REGIONS };

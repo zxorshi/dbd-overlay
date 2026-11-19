@@ -13,13 +13,14 @@ Every tool has an in-app panel and an overlay. An overlay can sit over the game 
 | Tool | What it does |
 |---|---|
 | 1v1 Timer | Two runs, round score, round history, penalty key, warning color near the time to beat |
-| Crosshair | Cross, dot, circle or T. Size, thickness, gap, outline, offset |
+| Crosshair | Cross, dot, circle or T. Size, thickness, gap, outline, offset. Profiles per killer |
 | Perk Timers | Arm timers, fire all with one key or each with its own key. Presets, tone per timer |
-| Streak Counter | Current, best, attempt. Win and loss keys, undo |
+| Streak Counter | Current, best, attempt. One streak per character. Win and loss keys, undo |
 | Perk Shuffle | Random loadout from a perk pool, lockable slots |
 | Killer Shuffle | Random killer from a roster, no repeats until all are played |
 | Map Callouts | Clock callout image for the current map. Map read from the screen, locks for the match, unlocks at the end screen |
-| Build Library | Saved builds checked against a league ruleset, per killer |
+| Build Library | Saved builds checked against a league ruleset, per killer. Imports DBDLeague, Champions of the Fog and other presets |
+| Killer Reference | Speed, terror radius, perks, and league tier and maps per killer |
 | Lobby Perks | Four survivors' perks, with team rule check |
 | Match Scoreboard | Sets, per-survivor hook states, gens left, kills. Mirror or win-condition format |
 | Statistics | Local match log, win rate per character |
@@ -62,6 +63,7 @@ npm test
 | Map list (`data/maps.json`) | Derived from Hens' callouts list | |
 | Callout images | [Hens' Callouts](https://hens333.com/callouts), map art by Lethia, with work by Zexov, Broosley and Evo | Not shipped. Downloaded to the user's computer on request. They belong to their creators |
 | League presets | [Balanced by Daylight](https://balancedbydaylight.com) by Kyle Starr and contributors | Not shipped. Fetched on request |
+| Windows test checklist | `docs/WINDOWS-TEST.md` | |
 | Map detection approach | zxorshi/dbd-clock-overlay (MIT), H4RDC0RN/dbd-overlay, erktiky/DBDMap | |
 | Timer features | Modeled on Truueh's DBD 1v1 Timer (feature reference only, no code) | |
 

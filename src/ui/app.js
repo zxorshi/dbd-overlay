@@ -346,6 +346,8 @@ Object.assign(VIEWS, {
         <select style="width:auto" aria-label="Load build" data-lobbybuild="${i}">${opt('', 'Load build...', '')}${S.builds.list.filter((b) => b.role === 'survivor').map((b) => opt(b.id, esc(b.name), '')).join('')}</select></div>
       <div class="grid2">${v.perks.map((p, s) => pick('lobby.setPerk', { i, slot: s }, p, 'survivor')).join('')}</div></div>`).join('');
     return ['Lobby Perks', 'The four survivors\' perks, for stream or scrim review.', `${lists()}${rows}
+      <div class="card"><h2>Overlay layout</h2><div class="row"><select style="width:auto" aria-label="Layout" ${B('lobby.set', 'layout')}>${opt('rows', 'Four rows', S.lobby.layout)}${opt('grid', 'Two by two', S.lobby.layout)}${opt('strip', 'One strip', S.lobby.layout)}</select>
+        <label><input type="checkbox" ${S.lobby.names ? 'checked' : ''} ${B('lobby.set', 'names')}> Show names</label></div></div>
       <div class="card"><h2>Team check</h2><div>${issuesHtml(S.derived.lobbyIssues, S.derived.ruleset)}</div>
         <div class="row"><button class="btn warn" ${A('lobby.clear')}>Clear all</button></div>
         <p class="note">The ruleset is chosen in Build Library. Entry is manual in this version.</p></div>`];

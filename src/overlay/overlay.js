@@ -127,7 +127,10 @@ Object.assign(render, {
     return `<div class="plate">${icon('portraits', b.killer, 'portrait')}<div class="col"><span class="lab">${esc(b.name)}</span>${perkStrip(b.perks, 'pi mdm')}${status}</div></div>`;
   },
   lobby(s) {
-    return `<div class="rows">${s.lobby.survivors.map((v) => `<div class="plate"><span class="lab who">${esc(v.name)}</span>${perkStrip(v.perks, 'pi sm')}</div>`).join('')}</div>`;
+    const L = s.lobby; const who = (v) => (L.names ? `<span class="lab who">${esc(v.name)}</span>` : '');
+    if (L.layout === 'strip') return `<div class="plate">${L.survivors.map((v) => `<div class="col">${who(v)}${perkStrip(v.perks, 'pi sm')}</div>`).join('')}</div>`;
+    if (L.layout === 'grid') return `<div class="lgrid">${L.survivors.map((v) => `<div class="plate"><div class="col">${who(v)}${perkStrip(v.perks, 'pi sm')}</div></div>`).join('')}</div>`;
+    return `<div class="rows">${L.survivors.map((v) => `<div class="plate">${who(v)}${perkStrip(v.perks, 'pi sm')}</div>`).join('')}</div>`;
   },
   score(s) {
     const sc = s.score; const d = s.derived.score; const c = sc.current;

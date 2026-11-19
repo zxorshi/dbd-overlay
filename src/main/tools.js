@@ -50,7 +50,7 @@ function defaultState() {
     killerShuffle: { excluded: [], noRepeat: true, played: [], result: null },
     builds: { list: [], activeId: null, rulesetId: null, vsKiller: null },
     rulesets: { list: [] },
-    lobby: { survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
+    lobby: { layout: 'rows', names: true, survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
     score: {
       teams: ['Team A', 'Team B'], bestOf: 3, games: [],
       // mirror: both teams play killer, results are compared. target: the killer must reach a win condition each game.
@@ -273,6 +273,7 @@ Object.assign(actions, {
   'lobby.setPerk'(s, { i, slot, perk }) { s.lobby.survivors[i].perks[slot] = perk; },
   'lobby.setName'(s, { i, name }) { s.lobby.survivors[i].name = name; },
   'lobby.loadBuild'(s, { i, id }) { const b = s.builds.list.find((x) => x.id === id); if (b) s.lobby.survivors[i].perks = [...b.perks]; },
+  'lobby.set'(s, f) { Object.assign(s.lobby, f); },
   'lobby.clear'(s) { s.lobby.survivors.forEach((v) => { v.perks = [null, null, null, null]; }); },
 
   // ---- match scoreboard

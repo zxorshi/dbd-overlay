@@ -191,7 +191,7 @@ function onInput(e) {
   } else if (e.type !== 'change') {
     return;
   } else if (t.dataset.pick) {
-    const d = JSON.parse(t.dataset.pick); const hit = D.perks.find((p) => p.name.toLowerCase() === String(val).trim().toLowerCase());
+    const d = JSON.parse(t.dataset.pick); const q = String(val).trim().toLowerCase().replace(/\s*\(.*$/, ''); const hit = D.perks.find((p) => p.name.toLowerCase() === q || (p.aka || '').toLowerCase() === q);
     api.act(d.act, { ...d.p, perk: hit ? hit.id : null });
   } else if (t.dataset.label) {
     const labels = [...S.timer.labels]; labels[Number(t.dataset.label)] = val; api.act('timer.set', { labels });
@@ -218,11 +218,14 @@ api.init().then((init) => {
 const pname = (id) => (D.perks.find((p) => p.id === id) || {}).name || '';
 const cname = (id) => (D.characters.find((c) => c.id === id) || {}).name || '';
 const pick = (act, p, value, role) => `<div class="pick">${art('perks', value, 'pi')}<input type="text" list="dl-${role}" placeholder="Perk name" aria-label="Perk" value="${esc(pname(value))}" data-pick='${esc(JSON.stringify({ act, p }))}'></div>`;
-const lists = () => ['survivor', 'killer'].map((r) => `<datalist id="dl-${r}">${D.perks.filter((p) => p.role === r).map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`).join('');
+const lists = () => ['survivor', 'killer'].map((r) => `<datalist id="dl-${r}">${D.perks.filter((p) => p.role === r).map((p) => `<option value="${esc(p.name)}">${p.aka ? esc('was ' + p.aka) : ''}</option>${p.aka ? `<option value="${esc(p.aka)}">${esc('now ' + p.name)}</option>` : ''}`).join('')}</datalist>`).join('');
 const charOpts = (role, sel) => opt('', role === 'killer' ? 'Any killer' : 'Any', sel || '') + D.characters.filter((c) => c.role === role).map((c) => opt(c.id, esc(c.name), sel)).join('');
 const issuesHtml = (list, rs) => (!rs ? '<span class="note">No ruleset selected</span>' : list.length ? list.map((x) => `<span class="bad">${esc(x)}</span>`).join('<br>') : `<span class="good">Legal under ${esc(rs)}</span>`);
 const val = (id) => ($('#' + id) ? $('#' + id).value : '');
+const LEAGUES = { list: null, msg: '', bad: false };
 const FORMS = {
+  async leagues() { LEAGUES.msg = 'Loading'; panel(true); const r = await api.leagues(); LEAGUES.list = r.list || null; LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Could not load: ' + r.error : ''; panel(true); },
+  async league() { const p = val('lg-preset'); LEAGUES.msg = 'Importing'; panel(true); const r = await api.importLeague(p); LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Import failed: ' + r.error : 'Imported'; panel(true); },
   rules() { api.act('rules.import', { json: val('rs-json') }); },
   rule() { api.act('challenge.addRule', { text: val('ch-rule') }); panel(true); },
   stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills'), streak: $('#st-streak').checked, challenge: $('#st-chal').checked }); },
@@ -246,12 +249,16 @@ Object.assign(VIEWS, {
       <div>${issuesHtml(S.derived.buildIssues[x.id] || [], S.derived.ruleset)}</div>
       <div class="row"><button class="btn sm ${x.id === b.activeId ? '' : 'pri'}" ${A('builds.set', { activeId: x.id })}>${x.id === b.activeId ? 'On overlay' : 'Show on overlay'}</button>
         <button class="btn sm warn" ${A('builds.remove', { id: x.id })}>Delete</button></div></div>`).join('');
-    const bans = rs ? `<label class="field"><span>Name</span><input type="text" value="${esc(rs.name)}" ${B('rules.update', 'name', { id: rs.id })}></label>
+    const kinfo = rs && rs.killers && b.vsKiller ? rs.killers[b.vsKiller] : null;
+    const custom = rs && !rs.source;
+    const bans = !rs ? '' : `${custom ? `<label class="field"><span>Name</span><input type="text" value="${esc(rs.name)}" ${B('rules.update', 'name', { id: rs.id })}></label>
         <div class="row"><label><input type="checkbox" ${rs.uniquePerTeam ? 'checked' : ''} ${B('rules.update', 'uniquePerTeam', { id: rs.id })}> One copy of each perk per team</label>
-        <label class="row">Exhaustion perk limit <input type="number" min="0" max="4" value="${rs.maxExhaustion}" ${B('rules.update', 'maxExhaustion', { id: rs.id })}></label>
-        <button class="btn sm warn" ${A('rules.remove', { id: rs.id })}>Delete ruleset</button></div>
-      <p class="note">Banned perks: ${rs.banned.length}. Zero for the exhaustion limit means no limit.</p>
-      <div class="checks">${D.perks.map((p) => `<label><input type="checkbox" ${rs.banned.includes(p.id) ? 'checked' : ''} data-ban="${rs.id}" value="${p.id}">${art('perks', p.id, 'pi sm')}${esc(p.name)}</label>`).join('')}</div>` : '';
+        <label class="row">Exhaustion perk limit <input type="number" min="0" max="4" value="${rs.maxExhaustion}" ${B('rules.update', 'maxExhaustion', { id: rs.id })}></label></div>` : `<p class="note">Imported from ${esc(rs.source)}${rs.updated ? ', updated ' + new Date(rs.updated * 1000).toLocaleDateString() : ''}. ${rs.banned.length} survivor perks and ${(rs.killerBanned || []).length} killer perks banned for every killer${rs.maxRepetition ? `, each perk at most ${rs.maxRepetition} per team` : ''}. Import again to update.</p>`}
+      ${rs.killers && Object.keys(rs.killers).length ? `<div class="row"><label class="row">Check against killer <select style="width:auto" ${B('builds.set', 'vsKiller')}>${opt('', 'General rules only', b.vsKiller || '')}${Object.entries(rs.killers).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([id, k]) => opt(id, esc(k.name) + (k.disabled ? ' (not allowed)' : ''), b.vsKiller)).join('')}</select></label></div>` : ''}
+      ${kinfo ? `<div class="result"><span class="row">${art('portraits', b.vsKiller, 'portrait')}<span><strong>${esc(kinfo.name)}</strong>${kinfo.disabled ? ' <span class="bad">not allowed</span>' : ''}<br><span class="note">${kinfo.tiers.length ? esc(kinfo.tiers.join(', ')) + '. ' : ''}Maps: ${esc(kinfo.maps.join(', ') || 'not set')}. ${kinfo.survBanned.length} more survivor bans, ${kinfo.killerBanned.length} more killer bans.</span>${kinfo.notes ? `<br><span class="note">${esc(kinfo.notes.slice(0, 300))}</span>` : ''}</span></span></div>` : ''}
+      <div class="row"><button class="btn sm warn" ${A('rules.remove', { id: rs.id })}>Delete ruleset</button></div>
+      ${custom ? `<p class="note">Banned survivor perks: ${rs.banned.length}. Zero for the exhaustion limit means no limit.</p>
+      <div class="checks">${D.perks.map((p) => `<label><input type="checkbox" ${rs.banned.includes(p.id) ? 'checked' : ''} data-ban="${rs.id}" value="${p.id}">${art('perks', p.id, 'pi sm')}${esc(p.name)}</label>`).join('')}</div>` : ''}`;
     return ['Build Library', 'Saved builds, checked against a league ruleset.', `${lists()}
       <div class="row"><button class="btn pri" ${A('builds.add', { role: 'survivor' })}>New survivor build</button><button class="btn" ${A('builds.add', { role: 'killer' })}>New killer build</button></div>
       ${cards || '<p class="note">No builds yet.</p>'}
@@ -259,6 +266,9 @@ Object.assign(VIEWS, {
         <div class="row"><select style="width:auto" aria-label="Active ruleset" ${B('builds.set', 'rulesetId')}>${opt('', 'None', b.rulesetId || '')}${S.rulesets.list.map((r) => opt(r.id, esc(r.name), b.rulesetId)).join('')}</select>
           <button class="btn" ${A('rules.add')}>New ruleset</button></div>
         ${bans}
+        <div class="field"><span>League presets from balancedbydaylight.com (DBDLeague, Champions of the Fog, DBDRanked and others)</span>
+          <div class="row">${LEAGUES.list ? `<select id="lg-preset" style="width:auto;max-width:320px" aria-label="League preset">${LEAGUES.list.map((p) => opt(p.path, esc(p.name), '')).join('')}</select><button class="btn pri" data-form="league">Import preset</button>` : `<button class="btn" data-form="leagues">Load preset list</button>`}
+          ${LEAGUES.msg ? `<span class="${LEAGUES.bad ? 'bad' : 'note'}">${esc(LEAGUES.msg)}</span>` : ''}</div></div>
         <div class="field"><span>Import ruleset (JSON): {"name": "...", "banned": ["Perk name"], "uniquePerTeam": true, "maxExhaustion": 1}</span>
           <textarea id="rs-json" rows="3"></textarea></div>
         <div class="row"><button class="btn" data-form="rules">Import</button></div></div>`];

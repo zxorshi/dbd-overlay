@@ -84,6 +84,20 @@ test('rulesets: banned perk and duplicate perk are reported', () => {
   assert.equal(d.buildIssues[s.builds.list[0].id].length, 2);
   assert.ok(d.lobbyIssues.some((x) => x.includes('Lithe used 2 times')));
 });
+test('league preset: conversion and per-killer check', () => {
+  const { convertPreset } = require('../src/main/leagues');
+  const theirPerks = [{ id: 0, name: 'Lithe' }, { id: 1, name: 'Sprint Burst' }, { id: 2, name: 'Kindred' }, { id: 3, name: 'Corrupt Intervention' }];
+  const preset = { Name: 'L', MaxPerkRepetition: 1, Tiers: [{ Name: 'General', SurvivorIndvPerkBans: ['2'], KillerIndvPerkBans: [], SurvivorComboPerkBans: [['0', '1']], KillerComboPerkBans: [] }, { Name: 'Tier 1', SurvivorIndvPerkBans: ['0'], KillerIndvPerkBans: ['3'], SurvivorComboPerkBans: [], KillerComboPerkBans: [] }],
+    KillerOverride: [{ Name: 'The Nurse', IsDisabled: false, Map: [5], BalanceTiers: [0, 1], SurvivorBalanceTiers: [0, 1], SurvivorWhitelistedPerks: [], KillerWhitelistedPerks: [] }] };
+  const rs = convertPreset(preset, theirPerks, [{ ID: 5, Name: 'Coal Tower I' }], perks, characters);
+  const nurse = characters.find((c) => c.name === 'The Nurse').id;
+  assert.deepEqual(rs.killers[nurse].maps, ['Coal Tower I']);
+  const s = defaultState(); dispatch(s, 'rules.addImported', { ruleset: rs }, ctx(3));
+  dispatch(s, 'builds.add', { perks: ['Lithe', null, null, null] }, ctx(4));
+  assert.equal(derive(s, perks).buildIssues[s.builds.list[0].id].length, 0);
+  s.builds.vsKiller = nurse;
+  assert.match(derive(s, perks).buildIssues[s.builds.list[0].id][0], /Lithe is banned on The Nurse/);
+});
 test('stats: win rate per character', () => {
   const sum = statsSummary([{ character: 'A', result: 'win' }, { character: 'A', result: 'loss' }, { character: 'B', result: 'win' }]);
   assert.equal(sum.total.rate, 67);

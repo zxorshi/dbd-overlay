@@ -258,6 +258,13 @@
   "character": "Claudette"
  },
  {
+  "id": "ObjectOfObsession",
+  "name": "Bound by Obsession",
+  "role": "survivor",
+  "character": "Laurie",
+  "aka": "Object of Obsession"
+ },
+ {
   "id": "Breakdown",
   "name": "Breakdown",
   "role": "survivor",
@@ -396,6 +403,13 @@
   "character": "Demogorgon"
  },
  {
+  "id": "Dying_Light",
+  "name": "Cull the Weak",
+  "role": "killer",
+  "character": "Shape",
+  "aka": "Dying Light"
+ },
+ {
   "id": "S35P01",
   "name": "Cut Loose",
   "role": "survivor",
@@ -450,12 +464,6 @@
   "character": "S40"
  },
  {
-  "id": "K25P01",
-  "name": "Deadlock",
-  "role": "killer",
-  "character": "K25"
- },
- {
   "id": "Deathbound",
   "name": "Deathbound",
   "role": "killer",
@@ -466,12 +474,6 @@
   "name": "Deception",
   "role": "survivor",
   "character": "S24"
- },
- {
-  "id": "DecisiveStrike",
-  "name": "Decisive Strike",
-  "role": "survivor",
-  "character": "Laurie"
  },
  {
   "id": "Deerstalker",
@@ -546,6 +548,13 @@
   "character": "K37"
  },
  {
+  "id": "SoleSurvivor",
+  "name": "Down to the Last",
+  "role": "survivor",
+  "character": "Laurie",
+  "aka": "Sole Survivor"
+ },
+ {
   "id": "DragonsGrip",
   "name": "Dragon’s Grip",
   "role": "killer",
@@ -562,12 +571,6 @@
   "name": "Duty of Care",
   "role": "survivor",
   "character": "S46"
- },
- {
-  "id": "Dying_Light",
-  "name": "Dying Light",
-  "role": "killer",
-  "character": "Shape"
  },
  {
   "id": "S30P02",
@@ -798,6 +801,13 @@
   "character": "K30"
  },
  {
+  "id": "K25P02",
+  "name": "Hex: Fortune's Fool",
+  "role": "killer",
+  "character": "K25",
+  "aka": "Hex: Plaything"
+ },
+ {
   "id": "Hex_HauntedGround",
   "name": "Hex: Haunted Ground",
   "role": "killer",
@@ -838,12 +848,6 @@
   "name": "Hex: Pentimento",
   "role": "killer",
   "character": "K26"
- },
- {
-  "id": "K25P02",
-  "name": "Hex: Plaything",
-  "role": "killer",
-  "character": "K25"
  },
  {
   "id": "HexRetribution",
@@ -994,6 +998,13 @@
   "name": "Iron Will",
   "role": "survivor",
   "character": "Jake"
+ },
+ {
+  "id": "Save_The_Best_For_Last",
+  "name": "Keep Them Waiting",
+  "role": "killer",
+  "character": "Shape",
+  "aka": "Save the Best for Last"
  },
  {
   "id": "Kindred",
@@ -1164,6 +1175,13 @@
   "character": "Oni"
  },
  {
+  "id": "K25P01",
+  "name": "No Holds Barred",
+  "role": "killer",
+  "character": "K25",
+  "aka": "Deadlock"
+ },
+ {
   "id": "NoMither",
   "name": "No Mither",
   "role": "survivor",
@@ -1198,12 +1216,6 @@
   "name": "Nowhere to Hide",
   "role": "killer",
   "character": "K30"
- },
- {
-  "id": "ObjectOfObsession",
-  "name": "Object of Obsession",
-  "role": "survivor",
-  "character": "Laurie"
  },
  {
   "id": "OffTheRecord",
@@ -1270,12 +1282,6 @@
   "name": "Pharmacy",
   "role": "survivor",
   "character": "Quentin"
- },
- {
-  "id": "Play_With_Your_Food",
-  "name": "Play With Your Food",
-  "role": "killer",
-  "character": "Shape"
  },
  {
   "id": "S38P03",
@@ -1446,12 +1452,6 @@
   "character": "S54"
  },
  {
-  "id": "Save_The_Best_For_Last",
-  "name": "Save the best for last",
-  "role": "killer",
-  "character": "Shape"
- },
- {
   "id": "S37P03",
   "name": "Scavenger",
   "role": "survivor",
@@ -1468,12 +1468,6 @@
   "name": "Scourge Hook: Floods of Rage",
   "role": "killer",
   "character": "K27"
- },
- {
-  "id": "K25P03",
-  "name": "Scourge Hook: Gift of Pain",
-  "role": "killer",
-  "character": "K25"
  },
  {
   "id": "HangmansTrick",
@@ -1500,6 +1494,13 @@
   "character": "K26"
  },
  {
+  "id": "K25P03",
+  "name": "Scourge Hook: Weeping Wounds",
+  "role": "killer",
+  "character": "K25",
+  "aka": "Scourge Hook: Gift of Pain"
+ },
+ {
   "id": "SecondWind",
   "name": "Second Wind",
   "role": "survivor",
@@ -1510,6 +1511,13 @@
   "name": "Secret Project",
   "role": "killer",
   "character": "K42"
+ },
+ {
+  "id": "Play_With_Your_Food",
+  "name": "See How They Run",
+  "role": "killer",
+  "character": "Shape",
+  "aka": "Play With Your Food"
  },
  {
   "id": "Self_Care",
@@ -1576,12 +1584,6 @@
   "name": "Smash Hit",
   "role": "survivor",
   "character": "S25"
- },
- {
-  "id": "SoleSurvivor",
-  "name": "Sole Survivor",
-  "role": "survivor",
-  "character": "Laurie"
  },
  {
   "id": "Solidarity",
@@ -1906,6 +1908,13 @@
   "name": "Wide Open Throttle",
   "role": "survivor",
   "character": "S53"
+ },
+ {
+  "id": "DecisiveStrike",
+  "name": "Will to Live",
+  "role": "survivor",
+  "character": "Laurie",
+  "aka": "Decisive Strike"
  },
  {
   "id": "WindowsOfOpportunity",

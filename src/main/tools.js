@@ -36,14 +36,14 @@ function defaultState() {
       list: [
         { id: 'endurance', name: 'Unhook Endurance', seconds: 10, armed: true, tone: 440, endsAt: null },
         { id: 'bt', name: 'Borrowed Time', seconds: 20, armed: false, tone: 520, endsAt: null },
-        { id: 'ds', name: 'Decisive Strike', seconds: 60, armed: true, tone: 660, endsAt: null },
-        { id: 'otr', name: 'Off the Record', seconds: 40, armed: false, tone: 780, endsAt: null },
+        { id: 'ds', name: 'Will to Live (DS)', seconds: 60, armed: true, tone: 660, endsAt: null },
+        { id: 'otr', name: 'Off the Record', seconds: 80, armed: false, tone: 780, endsAt: null },
       ],
     },
     streak: { label: 'Streak', rule: '3k', current: 0, best: 0, attempts: 1, history: [] },
     perkShuffle: { role: 'survivor', excluded: [], locked: [false, false, false, false], result: [null, null, null, null] },
     killerShuffle: { excluded: [], noRepeat: true, played: [], result: null },
-    builds: { list: [], activeId: null, rulesetId: null },
+    builds: { list: [], activeId: null, rulesetId: null, vsKiller: null },
     rulesets: { list: [] },
     lobby: { survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
     score: {
@@ -192,11 +192,15 @@ Object.assign(actions, {
     r.banned = r.banned.includes(perk) ? r.banned.filter((x) => x !== perk) : [...r.banned, perk];
   },
   'rules.remove'(s, { id }) { s.rulesets.list = s.rulesets.list.filter((r) => r.id !== id); if (s.builds.rulesetId === id) s.builds.rulesetId = null; },
+  'rules.addImported'(s, { ruleset }, { now }) {
+    const id = 'r' + now; s.rulesets.list = s.rulesets.list.filter((r) => !(r.source && r.name === ruleset.name));
+    s.rulesets.list.push({ id, ...ruleset }); s.builds.rulesetId = id;
+  },
   // Import accepts { name, banned: [perk id or perk name], uniquePerTeam, maxExhaustion }.
   'rules.import'(s, { json }, { now, perks }) {
     let d; try { d = JSON.parse(json); } catch { return; }
     if (!d || typeof d !== 'object') return;
-    const find = (x) => (perks.find((p) => p.id === x || p.name.toLowerCase() === String(x).toLowerCase()) || {}).id;
+    const low = String; const find = (x) => (perks.find((p) => p.id === x || [p.name, p.aka].some((n) => n && n.toLowerCase() === low(x).toLowerCase())) || {}).id;
     const id = 'r' + now;
     s.rulesets.list.push({
       id, name: String(d.name || 'Imported ruleset').slice(0, 80),
@@ -284,18 +288,26 @@ Object.assign(actions, {
 
 // ---- derived values (computed for the UI and overlays, never saved as source data)
 const EXHAUSTION = ['Sprint Burst', 'Balanced Landing', 'Lithe', 'Dead Hard', 'Head On', 'Overcome', 'Smash Hit', 'Background Player', 'Dramaturgy'];
-function buildIssues(perkIds, rs, names) {
+// `ctxKiller` is the killer the build is played as (killer builds) or against (survivor builds).
+function buildIssues(build, rs, ctxKiller, names) {
   if (!rs) return [];
-  const out = [];
-  perkIds.filter(Boolean).forEach((p) => { if (rs.banned.includes(p)) out.push(`${names[p] || p} is banned`); });
-  if (rs.maxExhaustion > 0) { const n = perkIds.filter((p) => EXHAUSTION.includes(names[p])).length; if (n > rs.maxExhaustion) out.push(`${n} exhaustion perks, limit ${rs.maxExhaustion}`); }
+  const out = []; const perkIds = build.perks.filter(Boolean); const isKiller = build.role === 'killer';
+  const k = (rs.killers || {})[isKiller ? (build.killer || ctxKiller) : ctxKiller] || null;
+  if (k && k.disabled) out.push(`${k.name} is not allowed in this ruleset`);
+  const allow = new Set(k ? (isKiller ? k.killerWhitelist : k.survWhitelist) : []);
+  const banned = new Set([...(isKiller ? rs.killerBanned || [] : rs.banned || []), ...(k ? (isKiller ? k.killerBanned : k.survBanned) : [])]);
+  perkIds.forEach((p) => { if (banned.has(p) && !allow.has(p)) out.push(`${names[p] || p} is banned${k ? ' on ' + k.name : ''}`); });
+  const combos = [...(isKiller ? rs.killerCombos || [] : rs.combos || []), ...(k ? (isKiller ? k.killerCombos : k.survCombos) : [])];
+  combos.forEach((c) => { if (c.every((p) => perkIds.includes(p))) out.push(`${c.map((p) => names[p] || p).join(' + ')} cannot be used together`); });
+  if (!isKiller && rs.maxExhaustion > 0) { const n = perkIds.filter((p) => EXHAUSTION.includes(names[p])).length; if (n > rs.maxExhaustion) out.push(`${n} exhaustion perks, limit ${rs.maxExhaustion}`); }
   return out;
 }
 function teamIssues(survivors, rs, names) {
-  if (!rs || !rs.uniquePerTeam) return [];
+  const limit = rs ? (rs.maxRepetition || (rs.uniquePerTeam ? 1 : 0)) : 0;
+  if (!limit) return [];
   const count = {};
   survivors.forEach((v) => v.perks.filter(Boolean).forEach((p) => { count[p] = (count[p] || 0) + 1; }));
-  return Object.entries(count).filter(([, n]) => n > 1).map(([p, n]) => `${names[p] || p} used ${n} times`);
+  return Object.entries(count).filter(([, n]) => n > limit).map(([p, n]) => `${names[p] || p} used ${n} times, limit ${limit}`);
 }
 // A set is two games, one per team as killer. More hook stages wins; then more gens left; then more kills.
 function scoreSummary(score) {
@@ -325,9 +337,10 @@ function statsSummary(matches) {
 function derive(state, perks) {
   const names = Object.fromEntries(perks.map((p) => [p.id, p.name]));
   const rs = state.rulesets.list.find((r) => r.id === state.builds.rulesetId) || null;
+  const vs = state.builds.vsKiller || null;
   return {
-    buildIssues: Object.fromEntries(state.builds.list.map((b) => [b.id, buildIssues(b.perks, rs, names)])),
-    lobbyIssues: [...state.lobby.survivors.flatMap((v) => buildIssues(v.perks, rs, names).map((x) => `${v.name}: ${x}`)), ...teamIssues(state.lobby.survivors, rs, names)],
+    buildIssues: Object.fromEntries(state.builds.list.map((b) => [b.id, buildIssues(b, rs, vs, names)])),
+    lobbyIssues: [...state.lobby.survivors.flatMap((v) => buildIssues({ role: 'survivor', perks: v.perks }, rs, vs, names).map((x) => `${v.name}: ${x}`)), ...teamIssues(state.lobby.survivors, rs, names)],
     ruleset: rs ? rs.name : null,
     score: scoreSummary(state.score),
     stats: statsSummary(state.stats.matches),

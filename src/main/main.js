@@ -1,6 +1,7 @@
 // Main process: state store, overlay windows, global hotkeys, local server for overlays and OBS.
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell, Tray, Menu, nativeImage } = require('electron');
 const { execFile } = require('node:child_process');
+const leagues = require('./leagues');
 const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
@@ -263,6 +264,10 @@ app.whenReady().then(async () => {
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
   ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else if (what === 'download') downloadCallouts(); else { scanCallouts(); broadcast(); } });
   ipcMain.on('detect', () => detector.scan(state.map.region));
+  ipcMain.handle('leagues.list', async () => { try { return { list: await leagues.listPresets() }; } catch (e) { return { error: String(e.message || e) }; } });
+  ipcMain.handle('leagues.import', async (_e, presetPath) => {
+    try { act('rules.addImported', { ruleset: await leagues.importPreset(String(presetPath), perks, characters) }); return {}; } catch (e) { return { error: String(e.message || e) }; }
+  });
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
   mainWin = new BrowserWindow({

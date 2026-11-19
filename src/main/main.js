@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, screen, clipboard, desktopCapturer, shell, 
 const { execFile } = require('node:child_process');
 const leagues = require('./leagues');
 const hooks = require('./hooks');
+const calloutSite = require('./callouts');
 const { createWinOcr } = require('./winocr');
 const { prepare } = require('./prep');
 const { createDetector, createSession, buildCatalog, matchMap, norm } = require('./detect');
@@ -64,13 +65,13 @@ function save() {
 // ---- map callouts ----------------------------------------------------------
 // Callout images are not shipped. They live in the user's callouts folder (or ./callouts next to the app),
 // either at the catalog path (Realm/Map.webp) or as any image file named after the map.
-const IMAGE_BASE_URL = 'https://hens333.com/img/dbd/callouts/';
 function scanCallouts() {
   callouts = Object.create(null);
   // Packaged: a callouts folder beside the exe. From source: ./callouts in the project (git-ignored).
-  const roots = [calloutDir, path.join(app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT, 'callouts')];
+  // The chosen style's download folder wins, then the user's own files, then other styles.
+  const roots = [path.join(calloutDir, 'hens-' + (state.map.style || 'classic')), calloutDir, path.join(app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT, 'callouts')];
   const byName = {};
-  for (const m of catalog) for (const a of m.aliases) byName[a] = byName[a] || m.id;
+  for (const m of catalog) { byName[norm(m.id)] = m.id; for (const a of m.aliases) byName[a] = byName[a] || m.id; }
   for (const root of roots) {
     for (const m of catalog) { if (!m.image) continue; const f = path.join(root, m.image); if (!callouts[m.id] && fs.existsSync(f)) callouts[m.id] = f; }
     const visit = (dir, depth) => {
@@ -87,21 +88,11 @@ function scanCallouts() {
 let downloading = false;
 async function downloadCallouts() {
   if (downloading) return; downloading = true;
-  const missing = catalog.filter((m) => m.image && !callouts[m.id]); let done = 0; let failed = 0;
-  for (const m of missing) {
-    state.map.download = `Downloading ${done + 1} of ${missing.length}`; broadcast();
-    try {
-      const res = await fetch(IMAGE_BASE_URL + m.image.split('/').map(encodeURIComponent).join('/'), { signal: AbortSignal.timeout(20000) });
-      if (!res.ok) throw new Error(String(res.status));
-      const file = path.join(calloutDir, m.image);
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()));
-    } catch { failed += 1; }
-    done += 1;
-  }
-  downloading = false; scanCallouts();
-  state.map.download = failed ? `${failed} of ${missing.length} images could not be downloaded` : '';
-  broadcast();
+  try {
+    const r = await calloutSite.download({ dir: calloutDir, style: state.map.style, catalog, onProgress: (n, total) => { state.map.download = `Downloading ${n} of ${total}`; broadcast(); } });
+    state.map.download = r.failed ? `${r.failed} of ${r.total} images could not be downloaded` : `Done: ${r.saved} new images`;
+  } catch (err) { state.map.download = 'Download failed: ' + (err.message || err); }
+  downloading = false; scanCallouts(); broadcast();
 }
 
 async function grabScreen(region, opts) {
@@ -161,6 +152,7 @@ function act(name, payload) {
   if (!ok) return;
   if (name.startsWith('hotkey.') || name === 'settings.set' || name === 'perks.remove') registerHotkeys();
   if (name.startsWith('map.')) session.reset();
+  if (name === 'map.set' && payload && 'style' in payload) scanCallouts();
   if (name.startsWith('map.') || name === 'settings.set') syncDetector();
   syncOverlayWindows();
   broadcast();

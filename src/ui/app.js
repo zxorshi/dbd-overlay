@@ -493,7 +493,8 @@ VIEWS.map = () => {
       ${m.lastError ? `<p class="bad">${esc(m.lastError)}</p>` : ''}
       <p class="note">Reads the map name shown when a trial loads. The game must run in borderless or windowed mode. The same map must be read twice in a row before it locks. ${m.engine ? 'Reader in use: ' + esc(m.engine) + '. ' : ''}Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
     <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length}</h2>
-      <div class="row">${missing ? `<button class="btn pri" data-form="download">Download ${missing} images from hens333.com</button>` : ''}
+      <div class="row"><label class="row">Style <select style="width:auto" ${B('map.set', 'style')}>${opt('classic', 'Classic', m.style)}${opt('dark', 'Dark', m.style)}${opt('empty', 'Empty (no numbers)', m.style)}</select></label>
+        <button class="btn ${missing ? 'pri' : ''}" data-form="download">Download from hens333.com</button>
         <button class="btn" data-form="folder">Open callouts folder</button><button class="btn" data-form="rescan">Rescan</button></div>
       ${m.download ? `<p class="note">${esc(m.download)}</p>` : ''}
       <p class="note">Images are Hens' callouts (hens333.com/callouts), map art by Lethia. They belong to their creators and are downloaded to your computer, not shipped with the app. Your own images also work: name the file after the map, for example <kbd>Coal Tower.png</kbd>.</p></div>`];

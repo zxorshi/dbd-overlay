@@ -146,3 +146,15 @@ test('scoreboard target mode: killer needs the win condition', () => {
   dispatch(s, 'score.current', { stages: 8 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
   assert.deepEqual(scoreSummary(s.score).sets, [2, 0]);
 });
+
+test('scoreboard logs finished games to stats for my team', () => {
+  const s = defaultState(); dispatch(s, 'score.set', { myTeam: '1' }, ctx(0));
+  dispatch(s, 'score.hook', { i: 0, dead: true }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(5));
+  assert.deepEqual([s.stats.matches[0].role, s.stats.matches[0].result], ['survivor', 'win']);
+});
+test('crosshair profiles: save, change, cycle back', () => {
+  const s = defaultState(); dispatch(s, 'crosshair.saveProfile', { name: 'Huntress' }, ctx(1));
+  dispatch(s, 'crosshair.set', { size: 60, offsetY: 12 }, ctx(2)); dispatch(s, 'crosshair.saveProfile', { name: 'Slinger' }, ctx(3));
+  dispatch(s, 'crosshair.next', {}, ctx(4));
+  assert.deepEqual([s.crosshair.size, s.crosshair.offsetY, s.crosshair.profiles.length], [24, 0, 2]);
+});

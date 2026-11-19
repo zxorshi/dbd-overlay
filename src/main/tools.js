@@ -34,7 +34,7 @@ function defaultState() {
       warnSeconds: 20, // the second run changes color this many seconds before it reaches the first run's time
       penaltyMs: 5000,
     },
-    crosshair: { shape: 'cross', size: 24, thickness: 2, gap: 4, dot: false, outline: true, offsetX: 0, offsetY: 0 },
+    crosshair: { shape: 'cross', size: 24, thickness: 2, gap: 4, dot: false, outline: true, offsetX: 0, offsetY: 0, profiles: [], profile: null },
     perks: {
       // Durations are defaults taken from community data. Editable. Check against the current patch.
       list: [
@@ -54,6 +54,7 @@ function defaultState() {
       teams: ['Team A', 'Team B'], bestOf: 3, games: [],
       // mirror: both teams play killer, results are compared. target: the killer must reach a win condition each game.
       mode: 'mirror', targetType: 'stages', targetStages: 9, targetGens: 1,
+      myTeam: '', // '0' or '1': finished games are also logged to Statistics from that team's side
       current: newGame(0),
     },
     stats: { matches: [] },
@@ -136,6 +137,26 @@ const actions = {
 
   // ---- crosshair
   'crosshair.set'(s, fields) { Object.assign(s.crosshair, fields); },
+  // Profiles hold one crosshair per killer (shape, size, offsets, color).
+  'crosshair.saveProfile'(s, { name }, { now }) {
+    const c = s.crosshair; const { profiles, profile, ...shape } = c;
+    const label = String(name || '').trim().slice(0, 40) || 'Profile ' + (profiles.length + 1);
+    const existing = profiles.find((p) => p.name.toLowerCase() === label.toLowerCase());
+    const data = { ...shape, color: s.overlays.crosshair.color };
+    if (existing) Object.assign(existing, data); else profiles.push({ id: 'c' + now, name: label, ...data });
+    c.profile = (existing || profiles[profiles.length - 1]).id;
+  },
+  'crosshair.loadProfile'(s, { id }) {
+    const c = s.crosshair; const p = c.profiles.find((x) => x.id === id); if (!p) return;
+    const { id: _i, name: _n, color, ...shape } = p; Object.assign(c, shape); c.profile = p.id;
+    if (color) s.overlays.crosshair.color = color;
+  },
+  'crosshair.next'(s) {
+    const c = s.crosshair; if (!c.profiles.length) return;
+    const i = c.profiles.findIndex((p) => p.id === c.profile);
+    actions['crosshair.loadProfile'](s, { id: c.profiles[(i + 1) % c.profiles.length].id });
+  },
+  'crosshair.deleteProfile'(s, { id }) { const c = s.crosshair; c.profiles = c.profiles.filter((p) => p.id !== id); if (c.profile === id) c.profile = null; },
 
   // ---- perk timers
   'perks.fireAll'(s, _p, { now }) { s.perks.list.forEach((p) => { if (p.armed) p.endsAt = now + p.seconds * 1000; }); },
@@ -197,6 +218,7 @@ const TIMER_PRESETS = [
   { name: 'Corrupt Intervention', seconds: 120 }, { name: 'Pop Goes the Weasel', seconds: 45 },
   { name: 'Grim Embrace (4 tokens)', seconds: 40 }, { name: 'No Holds Barred (Deadlock)', seconds: 25 },
 ];
+const ctxMapName = (s, ctx) => ((ctx.catalog || []).find((m) => m.id === s.map.current) || {}).name || '';
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const SCORE_LIMITS = { stages: [0, 12], gensLeft: [0, 5], kills: [0, 4] };
 const CHALLENGE_PRESETS = {
@@ -259,8 +281,15 @@ Object.assign(actions, {
     const lim = SCORE_LIMITS[field]; if (!lim) return;
     s.score.current[field] = clamp(s.score.current[field] + delta, lim[0], lim[1]);
   },
-  'score.endGame'(s) {
+  'score.endGame'(s, _p, ctx) {
     const c = s.score.current; s.score.games.push({ ...c });
+    if (s.score.myTeam !== '' && s.score.myTeam !== undefined) {
+      const asKiller = Number(s.score.myTeam) === c.killerTeam;
+      // Target format: the win condition decides. Otherwise the common norm: 3+ kills killer win, 2 a draw.
+      const killerResult = s.score.mode === 'target' ? (killerWon(s.score, c) ? 'win' : 'loss') : c.kills >= 3 ? 'win' : c.kills === 2 ? 'draw' : 'loss';
+      const result = asKiller ? killerResult : killerResult === 'win' ? 'loss' : killerResult === 'loss' ? 'win' : 'draw';
+      actions['stats.add'](s, { role: asKiller ? 'killer' : 'survivor', character: asKiller ? c.killer : null, map: ctxMapName(s, ctx), result, stages: c.stages, gensLeft: c.gensLeft, kills: c.kills }, ctx);
+    }
     s.score.current = newGame(c.killerTeam ? 0 : 1);
   },
   // Per-survivor hook states (0 to 3). Stages and kills follow from them; a dead survivor counts as 3.

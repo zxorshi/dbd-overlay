@@ -64,6 +64,7 @@ function overlayCard(id) {
       <label for="os">Size</label><input id="os" type="range" min="0.5" max="2.5" step="0.05" value="${o.scale}" ${B('overlay.set', 'scale', { id })}>
       <label for="oo">Opacity</label><input id="oo" type="range" min="0.2" max="1" step="0.05" value="${o.opacity}" ${B('overlay.set', 'opacity', { id })}>
     </div>
+    <div class="row"><span class="note">Show / hide key</span>${bindBtn('overlay.toggle:' + id)}</div>
     <div class="field"><span>OBS browser source URL</span>
       <div class="row"><span class="url">${url}</span><button class="btn sm" data-copy="${url}">Copy</button></div></div>
     ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it. Use Size to scale it. Lock it before playing.</p>'}`;
@@ -107,7 +108,10 @@ const VIEWS = {
         <label><input type="checkbox" ${c.dot ? 'checked' : ''} ${B('crosshair.set', 'dot')}> Center dot</label>
         <label><input type="checkbox" ${c.outline ? 'checked' : ''} ${B('crosshair.set', 'outline')}> Black outline</label></div>
       <div class="grid">${num('size', 'Size', 4, 200)}${num('thickness', 'Thickness', 1, 12)}${num('gap', 'Gap', 0, 60)}${num('offsetX', 'Offset X', -300, 300)}${num('offsetY', 'Offset Y', -300, 300)}</div>
-      <p class="note">Offsets move the mark for killers whose aim point is off-center.</p></div>`];
+      <p class="note">Offsets move the mark for killers whose aim point is off-center.</p></div>
+      <div class="card"><h2>Profiles</h2>
+        <div class="list">${c.profiles.map((p) => `<div class="result"><span>${esc(p.name)}${p.id === c.profile ? ' <span class="good">active</span>' : ''}</span><span class="row"><button class="btn sm" ${A('crosshair.loadProfile', { id: p.id })}>Load</button><button class="btn sm warn" ${A('crosshair.deleteProfile', { id: p.id })} aria-label="Delete ${esc(p.name)}">✕</button></span></div>`).join('') || '<p class="note">No profiles. Save one per killer, then switch with a key.</p>'}</div>
+        <div class="row"><input type="text" id="ch-name" style="width:200px" placeholder="Profile name, e.g. Huntress" aria-label="Profile name"><button class="btn" data-form="profile">Save current as profile</button><span class="row"><span class="note">Next profile</span>${bindBtn('crosshair.next')}</span></div></div>`];
   },
   perks() {
     const rows = S.perks.list.map((p) => `<div class="item">
@@ -274,6 +278,7 @@ const val = (id) => ($('#' + id) ? $('#' + id).value : '');
 const LEAGUES = { list: null, msg: '', bad: false };
 let backupMsg = '';
 const FORMS = {
+  profile() { api.act('crosshair.saveProfile', { name: val('ch-name') }); $('#ch-name').value = ''; },
   backup() { const { derived, calloutIds, gameRunning, hotkeysFailed, passthroughAvailable, ...rest } = S; api.copy(JSON.stringify(rest)); backupMsg = 'Copied to clipboard. Paste it into a text file to keep it.'; panel(true); },
   async restore() { const r = await api.restore(val('bk-json')); backupMsg = r.error ? 'Restore failed: ' + r.error : 'Restored.'; panel(true); },
   preset() { const p = D.timerPresets[Number(val('pt-preset'))]; if (p) api.act('perks.add', p); },
@@ -347,6 +352,7 @@ Object.assign(VIEWS, {
     return ['Match Scoreboard', 'Broadcast scoreboard. A set is two games, one per team as killer. More hook stages wins, then more gens left, then more kills.', `<div class="card"><h2>Match</h2>
         <div class="row"><input type="text" style="width:170px" aria-label="Team 1" value="${esc(sc.teams[0])}" data-team="0"><span class="big">${d.sets[0]} : ${d.sets[1]}</span><input type="text" style="width:170px" aria-label="Team 2" value="${esc(sc.teams[1])}" data-team="1">
           <label class="row">Best of <select style="width:auto" ${B('score.set', 'bestOf')}>${[1, 3, 5, 7, 9].map((n) => opt(n, n, sc.bestOf)).join('')}</select></label></div>
+        <div class="row"><label class="row">Log games to Statistics as <select style="width:auto" ${B('score.set', 'myTeam')}>${opt('', 'Off', sc.myTeam)}${opt('0', esc(sc.teams[0]), sc.myTeam)}${opt('1', esc(sc.teams[1]), sc.myTeam)}</select></label></div>
         <div class="row"><label class="row">Format <select style="width:auto" ${B('score.set', 'mode')}>${opt('mirror', 'Mirror: both teams play killer, results compared', sc.mode)}${opt('target', 'Target: killer must reach a win condition', sc.mode)}</select></label>
           ${sc.mode === 'target' ? `<select style="width:auto" aria-label="Win condition" ${B('score.set', 'targetType')}>${opt('stages', 'Hook stages', sc.targetType)}${opt('4k', '4 kills with gens left', sc.targetType)}</select>
             ${sc.targetType === '4k' ? `<label class="row">Gens left at least <input type="number" min="0" max="5" value="${sc.targetGens}" ${B('score.set', 'targetGens')}></label>` : `<label class="row">Stages needed <input type="number" min="1" max="12" value="${sc.targetStages}" ${B('score.set', 'targetStages')}></label>`}` : ''}</div>

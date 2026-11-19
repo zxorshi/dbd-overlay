@@ -285,265 +285,397 @@
   "id": "K40",
   "num": 268435495,
   "name": "The Animatronic",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "K26",
   "num": 268435481,
   "name": "The Artist",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "K21",
   "num": 268435476,
   "name": "The Blight",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 40,
+  "height": "average"
  },
  {
   "id": "Cannibal",
   "num": 268435464,
   "name": "The Cannibal",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K25",
   "num": 268435480,
   "name": "The Cenobite",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Clown",
   "num": 268435467,
   "name": "The Clown",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K37",
   "num": 268435492,
   "name": "The Dark Lord",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Gunslinger",
   "num": 268435474,
   "name": "The Deathslinger",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Demogorgon",
   "num": 268435472,
   "name": "The Demogorgon",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Killer07",
   "num": 268435462,
   "name": "The Doctor",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K28",
   "num": 268435483,
   "name": "The Dredge",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K20",
   "num": 268435475,
   "name": "The Executioner",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K42",
   "num": 268435497,
   "name": "The First",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Ghostface",
   "num": 268435471,
   "name": "The Ghost Face",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "K39",
   "num": 268435494,
   "name": "The Ghoul",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 40,
+  "height": "average"
  },
  {
   "id": "K34",
   "num": 268435489,
   "name": "The Good Guy",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 32,
+  "height": "short"
  },
  {
   "id": "Witch",
   "num": 268435460,
   "name": "The Hag",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "HillBilly",
   "num": 268435458,
   "name": "The Hillbilly",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 40,
+  "height": "tall"
  },
  {
   "id": "K38",
   "num": 268435493,
   "name": "The Houndmaster",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Bear",
   "num": 268435463,
   "name": "The Huntress",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 20,
+  "height": "tall"
  },
  {
   "id": "K44",
   "num": 268435499,
   "name": "The Judgment",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K30",
   "num": 268435485,
   "name": "The Knight",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "K41",
   "num": 268435496,
   "name": "The Krasue",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Legion",
   "num": 268435469,
   "name": "The Legion",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "K36",
   "num": 268435491,
   "name": "The Lich",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "K29",
   "num": 268435484,
   "name": "The Mastermind",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 40,
+  "height": "average"
  },
  {
   "id": "K24",
   "num": 268435479,
   "name": "The Nemesis",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Nightmare",
   "num": 268435465,
   "name": "The Nightmare",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Nurse",
   "num": 268435459,
   "name": "The Nurse",
-  "role": "killer"
+  "role": "killer",
+  "speed": 3.85,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Oni",
   "num": 268435473,
   "name": "The Oni",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K27",
   "num": 268435482,
   "name": "The Onryō",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 24,
+  "height": "short"
  },
  {
   "id": "Pig",
   "num": 268435466,
   "name": "The Pig",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "Plague",
   "num": 268435470,
   "name": "The Plague",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "Shape",
   "num": 268435461,
   "name": "The Shape",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": null,
+  "height": "tall"
  },
  {
   "id": "K32",
   "num": 268435487,
   "name": "The Singularity",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "K31",
   "num": 268435486,
   "name": "The Skull Merchant",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "K43",
   "num": 268435498,
   "name": "The Slasher",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Spirit",
   "num": 268435468,
   "name": "The Spirit",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "Chuckles",
   "num": 268435456,
   "name": "The Trapper",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K23",
   "num": 268435478,
   "name": "The Trickster",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.4,
+  "terror": 24,
+  "height": "average"
  },
  {
   "id": "K22",
   "num": 268435477,
   "name": "The Twins",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K35",
   "num": 268435490,
   "name": "The Unknown",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "Bob",
   "num": 268435457,
   "name": "The Wraith",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "tall"
  },
  {
   "id": "K33",
   "num": 268435488,
   "name": "The Xenomorph",
-  "role": "killer"
+  "role": "killer",
+  "speed": 4.6,
+  "terror": 32,
+  "height": "average"
  },
  {
   "id": "S44",

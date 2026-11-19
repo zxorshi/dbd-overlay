@@ -9,6 +9,7 @@ const TOOLS = [
   { g: 'Play', id: 'killerShuffle', name: 'Killer Shuffle' },
   { g: 'Compete', id: 'map', name: 'Map Callouts' },
   { g: 'Compete', id: 'builds', name: 'Build Library' },
+  { g: 'Compete', id: 'killers', name: 'Killer Reference' },
   { g: 'Compete', id: 'score', name: 'Match Scoreboard' },
   { g: 'Compete', id: 'lobby', name: 'Lobby Perks' },
   { g: 'Compete', id: 'stats', name: 'Statistics' },
@@ -493,3 +494,20 @@ VIEWS.home = () => {
     <div class="card"><h2>All overlays</h2><table><tr><th>Tool</th><th>On screen</th><th>Position</th><th>Color</th><th>Size</th></tr>${rows}</table></div>
     <div class="card"><h2>About</h2><p class="note">Free and open source (MIT). Not affiliated with Behaviour Interactive. This app reads the screen and never reads game memory or sends input to the game. Behaviour has not published a position on overlay tools: use at your own risk.</p></div>`];
 };
+
+let killerSort = 'name';
+VIEWS.killers = () => {
+  const rs = S.rulesets.list.find((r) => r.id === S.builds.rulesetId);
+  const list = D.characters.filter((c) => c.role === 'killer').sort((a, b) => (killerSort === 'name' ? a.name.localeCompare(b.name) : (b[killerSort] || 0) - (a[killerSort] || 0)));
+  const own = (id) => D.perks.filter((p) => p.character === id);
+  const rows = list.map((c) => { const k = rs && rs.killers ? rs.killers[c.id] : null; return `<tr>
+    <td><span class="row">${art('portraits', c.id, 'portrait sm')}${esc(c.name)}</span></td>
+    <td>${c.speed ? c.speed.toFixed(1) + ' m/s' : ''}</td><td>${c.terror ? c.terror + ' m' : ''}</td><td>${esc(c.height || '')}</td>
+    <td><span class="row" style="gap:2px">${own(c.id).map((p) => `<span title="${esc(p.name)}">${art('perks', p.id, 'pi sm')}</span>`).join('')}</span></td>
+    ${rs && rs.killers ? `<td>${k ? (k.disabled ? '<span class="bad">not allowed</span>' : esc(k.tiers.filter((t) => t !== 'General').join(', ')) + (k.maps.length ? '<br><span class="note">' + esc(k.maps.join(', ')) + '</span>' : '')) : ''}</td>` : ''}</tr>`; }).join('');
+  return ['Killer Reference', 'Base movement speed, terror radius, height and teachable perks. With a league ruleset selected: tier and maps.', `<div class="card"><h2>Killers: ${list.length}</h2>
+      <div class="row"><span class="note">Sort by</span>${[['name', 'Name'], ['speed', 'Speed'], ['terror', 'Terror radius']].map(([k, n]) => `<button class="btn sm ${killerSort === k ? 'pri' : ''}" data-ksort="${k}">${n}</button>`).join('')}</div>
+      <div style="overflow-x:auto"><table><tr><th>Killer</th><th>Speed</th><th>Terror radius</th><th>Height</th><th>Perks</th>${rs && rs.killers ? `<th>${esc(rs.name)}</th>` : ''}</tr>${rows}</table></div>
+      <p class="note">Values come from community game data and are base values: add-ons, powers and perks change them. For guides, builds and tier lists see otzdarva.com and hens333.com.</p></div>`];
+};
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-ksort]'); if (b) { killerSort = b.dataset.ksort; panel(true); } });

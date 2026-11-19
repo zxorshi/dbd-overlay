@@ -4,7 +4,8 @@ import { writeFileSync } from 'node:fs';
 const get = async (p) => (await fetch('https://dbd.tricky.lol/api/' + p)).json();
 const [perks, chars] = await Promise.all([get('perks'), get('characters')]);
 const characters = Object.entries(chars)
-  .map(([num, c]) => ({ id: c.id, num: Number(num), name: c.name, role: c.role }))
+  .map(([num, c]) => ({ id: c.id, num: Number(num), name: c.name, role: c.role,
+    ...(c.role === 'killer' && c.tunables ? { speed: c.tunables.MaxWalkSpeed ? c.tunables.MaxWalkSpeed / 100 : null, terror: c.tunables.TerrorRadius ? c.tunables.TerrorRadius / 100 : null, height: c.height || null } : {}) }))
   .sort((a, b) => a.name.localeCompare(b.name));
 const byNum = Object.fromEntries(characters.map((c) => [c.num, c.id]));
 const perkList = Object.entries(perks)

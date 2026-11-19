@@ -39,11 +39,11 @@ Measured with `scripts/ocr-eval.js` on 26 real game screenshots (Steam community
 
 | Set | Result |
 |---|---|
-| English trial-start frames, map in catalog, text readable | 12 of 12 correct, 0.1 to 0.6 s each |
+| English trial-start frames with readable text | 13 of 13 correct, 0.1 to 0.6 s each |
 | English end-of-match screens | 7 of 7 recognized |
 | Frames with no map name (end screens, TAB screen) | 0 false map detections |
 | Non-English clients (Russian, Spanish, German) | Not detected. English game language is required |
-| Maps newer than the catalog (for example Hartshorne Mall) | Not detected |
+| Maps added to the game after the catalog was last updated | Not detected until added to `data/maps.json` |
 
 Not measured: live capture on Windows, and the Windows built-in reader.
 

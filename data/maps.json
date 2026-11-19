@@ -532,5 +532,14 @@
    "Trickster's Delusion"
   ],
   "image": "Sleepless District/Tricksters Delusion.webp"
+ },
+ {
+  "id": "subdivisions_hartshorne_mall",
+  "realm": "The Subdivisions",
+  "name": "Hartshorne Mall",
+  "names": [
+   "Hartshorne Mall"
+  ],
+  "image": ""
  }
 ]

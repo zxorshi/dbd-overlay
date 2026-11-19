@@ -474,7 +474,7 @@ VIEWS.map = () => {
   const cur = D.maps.find((x) => x.id === m.current);
   const fam = cur ? D.maps.filter((x) => x.family === cur.family) : [];
   const opts = opt('', 'No map', m.current || '') + realms.map((r) => `<optgroup label="${esc(r)}">${D.maps.filter((x) => x.realm === r).map((x) => opt(x.id, esc(x.name) + (has(x.id) ? '' : ' (no image)'), m.current)).join('')}</optgroup>`).join('');
-  const missing = D.maps.length - (S.calloutIds || []).length;
+  const missing = D.maps.filter((x) => x.image !== false && !has(x.id)).length;
   const status = !m.auto ? 'Detection is off. Pick a map below.'
     : m.locked && cur ? `Locked on ${esc(cur.name)}. Unlocks at the end-of-match screen.`
       : S.gameRunning ? 'Waiting for the next map name on screen.' : 'Waiting for Dead by Daylight to start.';

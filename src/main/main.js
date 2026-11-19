@@ -17,7 +17,7 @@ const characters = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'character
 let art = { perks: [], portraits: [] };
 try { art = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'game', 'manifest.json'), 'utf8')); } catch { /* no art downloaded */ }
 const catalog = buildCatalog(JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'maps.json'), 'utf8')));
-const maps = catalog.map(({ id, realm, name, family }) => ({ id, realm, name, family }));
+const maps = catalog.map(({ id, realm, name, family, image }) => ({ id, realm, name, family, image: Boolean(image) }));
 const session = createSession(catalog);
 let callouts = Object.create(null); // map id -> image file path
 let calloutDir = '';
@@ -72,7 +72,7 @@ function scanCallouts() {
   const byName = {};
   for (const m of catalog) for (const a of m.aliases) byName[a] = byName[a] || m.id;
   for (const root of roots) {
-    for (const m of catalog) { const f = path.join(root, m.image); if (!callouts[m.id] && fs.existsSync(f)) callouts[m.id] = f; }
+    for (const m of catalog) { if (!m.image) continue; const f = path.join(root, m.image); if (!callouts[m.id] && fs.existsSync(f)) callouts[m.id] = f; }
     const visit = (dir, depth) => {
       let entries = []; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
       for (const e of entries) {
@@ -87,7 +87,7 @@ function scanCallouts() {
 let downloading = false;
 async function downloadCallouts() {
   if (downloading) return; downloading = true;
-  const missing = catalog.filter((m) => !callouts[m.id]); let done = 0; let failed = 0;
+  const missing = catalog.filter((m) => m.image && !callouts[m.id]); let done = 0; let failed = 0;
   for (const m of missing) {
     state.map.download = `Downloading ${done + 1} of ${missing.length}`; broadcast();
     try {

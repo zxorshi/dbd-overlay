@@ -5,7 +5,7 @@ const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'ki
 
 const SIZES = { map: [420, 440], lobby: [380, 260], score: [900, 120], builds: [420, 150], stats: [520, 110], challenge: [380, 200], perkShuffle: [400, 150], perks: [300, 200] };
 const overlayDefaults = (i, id) => ({
-  open: false, locked: false, x: 80 + i * 30, y: 80 + i * 30, w: (SIZES[id] || [360])[0], h: (SIZES[id] || [0, 140])[1],
+  open: false, locked: true, x: 80 + i * 30, y: 80 + i * 30, w: (SIZES[id] || [360])[0], h: (SIZES[id] || [0, 140])[1],
   color: '#d7e3c5', scale: 1, opacity: 1, bg: 0.72,
 });
 

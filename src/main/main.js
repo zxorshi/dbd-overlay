@@ -61,6 +61,7 @@ function load() {
     }
   }
   state.map.locked = false; state.map.download = ''; // a lock never outlives the session
+  for (const o of Object.values(state.overlays)) o.locked = true; // edit mode never survives a restart: overlays start click-through
 }
 function writeNow() {
   clearTimeout(saveTimer); saveTimer = null;
@@ -257,6 +258,22 @@ function serve() {
         for (const [action, b] of Object.entries(state.hotkeys)) if (b === key) runHotkey(action);
       }
       res.writeHead(204); return res.end();
+    }
+    // Edit-mode controls on the overlay itself: resize, and Done to lock it again.
+    const ed = req.method === 'POST' && url.pathname.match(/^\/edit\/([A-Za-z]+)$/);
+    if (ed) {
+      let body = ''; req.on('data', (c) => { if (body.length < 200) body += c; });
+      req.on('end', () => {
+        try {
+          const d = JSON.parse(body); const o = state.overlays[ed[1]];
+          if (o && !o.locked) {
+            if (d.done) act('overlay.set', { id: ed[1], locked: true });
+            else if (Number.isFinite(d.scale)) act('overlay.set', { id: ed[1], scale: Math.round(Math.min(2.5, Math.max(0.5, d.scale)) * 100) / 100 });
+          }
+        } catch { /* ignore malformed requests */ }
+        res.writeHead(204); res.end();
+      });
+      return;
     }
     const sz = req.method === 'POST' && url.pathname.match(/^\/size\/([A-Za-z]+)$/);
     if (sz) {

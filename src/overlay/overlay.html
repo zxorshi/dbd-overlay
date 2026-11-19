@@ -6,7 +6,11 @@
 <link rel="stylesheet" href="/overlay.css">
 </head>
 <body>
-<div id="frame"><div id="root"></div></div>
+<div id="frame">
+  <div id="bar" hidden><span id="grip">Drag to move</span><button id="minus" title="Smaller">&minus;</button><button id="plus" title="Larger">+</button><button id="done" title="Finish and lock">&#10003; Done</button></div>
+  <div id="root"></div>
+  <div id="handle" hidden title="Drag to resize"></div>
+</div>
 <script src="/overlay.js"></script>
 </body>
 </html>

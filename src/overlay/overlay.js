@@ -87,7 +87,9 @@ function draw() {
   document.documentElement.style.setProperty('--c', o.color);
   document.documentElement.style.setProperty('--scale', o.scale);
   document.documentElement.style.setProperty('--plate', `rgba(12, 18, 14, ${o.bg ?? 0.72})`);
-  document.body.classList.toggle('unlocked', isWindow && !o.locked && id !== 'crosshair');
+  const editing = isWindow && !o.locked && id !== 'crosshair';
+  document.body.classList.toggle('unlocked', editing);
+  bar.hidden = !editing; handle.hidden = !editing; curScale = o.scale;
   document.getElementById('frame').dataset.name = id;
   if (!isWindow) document.body.style.opacity = o.opacity;
   const html = render[id](state);
@@ -105,12 +107,31 @@ function draw() {
 let lastSize = '';
 function fit() {
   if (!isWindow || id === 'crosshair') return;
-  const r = root.getBoundingClientRect();
-  const size = Math.ceil(r.width) + 'x' + Math.ceil(r.height);
+  const r = root.getBoundingClientRect(); const b = bar.hidden ? { width: 0, height: 0 } : bar.getBoundingClientRect();
+  const w = Math.ceil(Math.max(r.width, b.width)); const h = Math.ceil(r.height + (bar.hidden ? 0 : b.height + 6));
+  const size = w + 'x' + h;
   if (size === lastSize || r.width < 2) return;
   lastSize = size;
-  fetch('/size/' + id, { method: 'POST', body: JSON.stringify({ w: Math.ceil(r.width), h: Math.ceil(r.height) }) }).catch(() => {});
+  fetch('/size/' + id, { method: 'POST', body: JSON.stringify({ w, h }) }).catch(() => {});
 }
+
+// Edit mode controls. They exist only in app windows and only do anything while the overlay is unlocked.
+const bar = document.getElementById('bar'); const handle = document.getElementById('handle');
+let curScale = 1;
+const edit = (body) => fetch('/edit/' + id, { method: 'POST', body: JSON.stringify(body) }).catch(() => {});
+document.getElementById('minus').onclick = () => edit({ scale: curScale - 0.1 });
+document.getElementById('plus').onclick = () => edit({ scale: curScale + 0.1 });
+document.getElementById('done').onclick = () => edit({ done: true });
+// Corner handle: drag away from the overlay to grow it, toward it to shrink.
+let dragFrom = null; let lastSent = 0;
+handle.addEventListener('pointerdown', (e) => { dragFrom = { x: e.screenX, y: e.screenY, scale: curScale }; handle.setPointerCapture(e.pointerId); e.preventDefault(); });
+handle.addEventListener('pointermove', (e) => {
+  if (!dragFrom || Date.now() - lastSent < 40) return;
+  lastSent = Date.now();
+  edit({ scale: dragFrom.scale + ((e.screenX - dragFrom.x) + (e.screenY - dragFrom.y)) / 300 });
+});
+const endDrag = () => { dragFrom = null; };
+handle.addEventListener('pointerup', endDrag); handle.addEventListener('pointercancel', endDrag);
 
 fetch('/data').then((r) => r.json()).then((d) => { data = d; draw(); });
 new EventSource('/events').onmessage = (e) => { state = JSON.parse(e.data); draw(); };

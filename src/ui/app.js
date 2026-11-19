@@ -21,7 +21,7 @@ const TOOLS = [
 const HOTKEY_LABELS = {
   'timer.toggle': 'Timer: start / stop', 'timer.switch': 'Timer: switch player', 'timer.reset': 'Timer: reset', 'timer.scoreRound': 'Timer: score round',
   'perks.fireAll': 'Perk timers: fire all armed', 'streak.win': 'Streak: win', 'streak.loss': 'Streak: loss',
-  'perkShuffle.roll': 'Perk shuffle: roll', 'killerShuffle.roll': 'Killer shuffle: roll', 'overlays.toggleLock': 'Overlays: lock / unlock all',
+  'perkShuffle.roll': 'Perk shuffle: roll', 'killerShuffle.roll': 'Killer shuffle: roll', 'overlays.toggleLock': 'Overlays: edit layout / lock all',
   'overlays.toggleAll': 'Overlays: show / hide all', 'timer.cycle': 'Timer: start, stop, reset in turn', 'timer.select:0': 'Timer: select player 1', 'timer.select:1': 'Timer: select player 2', 'timer.penalty': 'Timer: penalty', 'perks.clear': 'Perk timers: clear',
   'score.hook:0': 'Scoreboard: hook survivor 1', 'score.hook:1': 'Scoreboard: hook survivor 2', 'score.hook:2': 'Scoreboard: hook survivor 3', 'score.hook:3': 'Scoreboard: hook survivor 4', 'score.bump:gen': 'Scoreboard: generator done', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
 };
@@ -84,7 +84,7 @@ function overlayCard(id) {
   const o = S.overlays[id]; const url = `http://127.0.0.1:${D.port}/overlay/${id}`;
   return `<div class="row">
       <button class="btn ${o.open ? '' : 'pri'}" ${A('overlay.toggle', { id })}>${o.open ? 'Hide overlay' : 'Show on screen'}</button>
-      ${id === 'crosshair' ? '' : `<button class="btn" ${A('overlay.set', { id, locked: !o.locked })}>${o.locked ? 'Unlock to move' : 'Lock (click-through)'}</button>`}
+      ${id === 'crosshair' ? '' : `<button class="btn" ${A('overlay.set', { id, locked: !o.locked })}>${o.locked ? 'Move / resize' : 'Done (lock)'}</button>`}
     </div>
     <div class="row">
       <label for="oc">Color</label><input id="oc" type="color" value="${o.color}" ${B('overlay.set', 'color', { id })}>
@@ -96,7 +96,7 @@ function overlayCard(id) {
     <div class="row"><span class="note">Show / hide key</span>${bindBtn('overlay.toggle:' + id)}</div>
     <div class="field"><span>OBS browser source URL</span>
       <div class="row"><span class="url">${url}</span><button class="btn sm" data-copy="${url}">Copy</button></div></div>
-    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it. Use Size to scale it. Lock it before playing.</p>'}`;
+    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Overlays are click-through. Press Move / resize to edit one: drag it by its bar, resize with the corner handle or the − and + buttons, then press ✓ Done on the overlay.</p>'}`;
 }
 
 const VIEWS = {
@@ -521,7 +521,7 @@ VIEWS.home = () => {
   const rows = TOOLS.filter((t) => S.overlays[t.id]).map((t) => { const o = S.overlays[t.id]; return `<tr>
     <td><button class="btn sm" data-tool="${t.id}">${t.name}</button></td>
     <td><button class="btn sm ${o.open ? 'pri' : ''}" ${A('overlay.toggle', { id: t.id })}>${o.open ? 'Shown' : 'Hidden'}</button></td>
-    <td>${t.id === 'crosshair' ? '<span class="note">always click-through</span>' : `<button class="btn sm" ${A('overlay.set', { id: t.id, locked: !o.locked })}>${o.locked ? 'Locked' : 'Movable'}</button>`}</td>
+    <td>${t.id === 'crosshair' ? '<span class="note">always click-through</span>' : `<button class="btn sm" ${A('overlay.set', { id: t.id, locked: !o.locked })}>${o.locked ? 'Move / resize' : 'Done'}</button>`}</td>
     <td><input type="color" aria-label="${t.name} color" value="${o.color}" ${B('overlay.set', 'color', { id: t.id })}></td>
     <td><input type="range" aria-label="${t.name} size" min="0.5" max="2.5" step="0.05" value="${o.scale}" ${B('overlay.set', 'scale', { id: t.id })}></td></tr>`; }).join('');
   const shown = Object.values(S.overlays).filter((o) => o.open).length;
@@ -530,9 +530,9 @@ VIEWS.home = () => {
         <span class="note">${shown} overlay${shown === 1 ? '' : 's'} shown${S.settings.overlaysHidden ? ', all hidden by hotkey' : ''}</span>
         <span class="note">Input: ${S.settings.inputMode === 'passthrough' ? 'pass-through' : 'standard'}</span></div>
       <div class="row"><button class="btn" ${A('overlays.toggleAll')}>${S.settings.overlaysHidden ? 'Unhide all' : 'Hide all'} ${key('overlays.toggleAll')}</button>
-        <button class="btn" ${A('overlays.toggleLock')}>Lock / unlock all ${key('overlays.toggleLock')}</button></div>
+        <button class="btn" ${A('overlays.toggleLock')}>Edit / lock all ${key('overlays.toggleLock')}</button></div>
       <p class="note">The game must run in borderless or windowed mode for overlays to show on top of it.</p></div>
-    <div class="card"><h2>All overlays</h2><table><tr><th>Tool</th><th>On screen</th><th>Position</th><th>Color</th><th>Size</th></tr>${rows}</table></div>
+    <div class="card"><h2>All overlays</h2><table><tr><th>Tool</th><th>On screen</th><th>Layout</th><th>Color</th><th>Size</th></tr>${rows}</table></div>
     <div class="card"><h2>About</h2><p class="note">Free and open source (MIT). Not affiliated with Behaviour Interactive. This app reads the screen and never reads game memory or sends input to the game. Behaviour has not published a position on overlay tools: use at your own risk.</p></div>`];
 };
 

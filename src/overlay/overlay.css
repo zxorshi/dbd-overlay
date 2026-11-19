@@ -33,8 +33,6 @@ body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba
 .ring { width: 260px; height: 260px; }
 .plate.slim { padding: 3px 10px; gap: 8px; }
 .callout { width: 420px; height: auto; }
-body.unlocked #frame::before { content: 'drag to move'; position: absolute; top: 2px; left: 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #d7e3c5; opacity: 0.8; }
-#frame { position: relative; }
 .hooks { display: flex; gap: 8px; height: 18px; align-items: center; }
 .sv { display: flex; gap: 2px; }
 .sv i { width: 7px; height: 14px; border-radius: 2px; border: 1px solid currentColor; opacity: 0.55; }
@@ -44,3 +42,12 @@ body.unlocked #frame::before { content: 'drag to move'; position: absolute; top:
 .plate.bar { position: relative; overflow: hidden; min-width: 220px; }
 .plate.bar::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--pct); background: currentColor; opacity: 0.8; }
 .lgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+/* Edit mode (app windows only): a bar to drag by, size buttons, a corner handle, and Done to lock again. */
+#frame { position: relative; flex-direction: column; gap: 6px; }
+[hidden] { display: none !important; }
+#bar { display: flex; gap: 6px; align-items: center; font: 600 11px "Segoe UI", system-ui, sans-serif; color: #e4eadd; white-space: nowrap; }
+#grip { padding: 3px 8px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; }
+#bar button { -webkit-app-region: no-drag; cursor: pointer; font: inherit; color: #e4eadd; background: #2f3b32; border: 1px solid #93a091; border-radius: 5px; padding: 2px 9px; min-width: 26px; }
+#bar button:hover { background: #3c4b40; }
+#bar #done { background: #8fb573; border-color: #8fb573; color: #10180c; }
+#handle { -webkit-app-region: no-drag; position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; border-right: 3px solid #8fb573; border-bottom: 3px solid #8fb573; border-radius: 0 0 8px 0; }

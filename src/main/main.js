@@ -4,6 +4,7 @@ const { execFile } = require('node:child_process');
 const leagues = require('./leagues');
 const hooks = require('./hooks');
 const { createWinOcr } = require('./winocr');
+const { prepare } = require('./prep');
 const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
@@ -110,14 +111,7 @@ async function grabScreen([x, y, w, h]) {
   const primary = String(screen.getPrimaryDisplay().id);
   const src = sources.find((x) => x.display_id === primary) || sources[0];
   const img = src && src.thumbnail; if (!img || img.isEmpty()) return null;
-  const s = img.getSize();
-  const cut = img.crop({ x: Math.round(x * s.width), y: Math.round(y * s.height), width: Math.round(w * s.width), height: Math.round(h * s.height) });
-  // OCR reads dark text on a light ground best. Game text is light on dark: grayscale, and invert dark frames.
-  const dim = cut.getSize(); const px = cut.toBitmap(); let sum = 0;
-  for (let i = 0; i < px.length; i += 4) { const g = (px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8; px[i] = g; sum += g; }
-  const invert = sum / (px.length / 4) < 110;
-  for (let i = 0; i < px.length; i += 4) { const g = invert ? 255 - px[i] : px[i]; px[i] = g; px[i + 1] = g; px[i + 2] = g; px[i + 3] = 255; }
-  return nativeImage.createFromBitmap(px, { width: dim.width, height: dim.height }).toPNG();
+  return prepare(img, [x, y, w, h]);
 }
 
 // Is the game running? Process list only (tasklist); the game process itself is never opened.

@@ -96,18 +96,27 @@ const REGIONS = { full: [0, 0, 1, 1], bottomLeft: [0, 0.5, 0.5, 0.5], bottom: [0
 // `winOcr` (optional) is tried first; Tesseract is the fallback and the only engine off Windows.
 function createDetector({ cacheDir, grab, onLines, winOcr, engineChoice = () => 'auto' }) {
   let worker = null; let timer = null; let busy = false; let engine = '';
+  const within = (promise, ms, what) => Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ' timed out')), ms))]);
   async function tesseract(png) {
     if (!worker) {
+      const fs = require('node:fs'); const zlib = require('node:zlib');
       const { createWorker } = require('tesseract.js');
       // Packaged builds keep these modules outside the asar archive (see asarUnpack in package.json).
       const real = (f) => f.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
-      worker = await createWorker('eng', 1, {
-        langPath: real(path.join(path.dirname(require.resolve('@tesseract.js-data/eng/package.json')), '4.0.0_best_int')),
+      const langDir = real(path.join(path.dirname(require.resolve('@tesseract.js-data/eng/package.json')), '4.0.0_best_int'));
+      // Inside Electron tesseract.js tries to fetch the language file as a URL and fails. It reads its cache
+      // folder first, so the bundled file is unpacked there once.
+      const cached = path.join(cacheDir, 'eng.traineddata');
+      if (!fs.existsSync(cached)) { fs.mkdirSync(cacheDir, { recursive: true }); fs.writeFileSync(cached, zlib.gunzipSync(fs.readFileSync(path.join(langDir, 'eng.traineddata.gz')))); }
+      let failure = null;
+      const created = createWorker('eng', 1, {
+        langPath: langDir, cachePath: cacheDir, gzip: true,
         workerPath: real(path.join(path.dirname(require.resolve('tesseract.js/package.json')), 'src', 'worker-script', 'node', 'index.js')),
-        cachePath: cacheDir, gzip: true,
+        errorHandler: (e) => { failure = e; },
       });
+      try { worker = await within(created, 30000, 'OCR start'); } catch (err) { throw new Error(failure ? String(failure.message || failure) : err.message); }
     }
-    const { data } = await worker.recognize(png);
+    const { data } = await within(worker.recognize(png), 20000, 'OCR');
     return data.text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   }
   async function recognize(png) {

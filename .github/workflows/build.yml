@@ -1,17 +1,29 @@
-name: Build Windows installer
+name: Build Windows exe
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with:
+          node-version: 22
       - run: npm ci
       - run: npm test
-      - run: npx electron-builder@25 --win portable --publish never
+      - run: npx electron-builder@25 --win portable --x64 --publish never
       - uses: actions/upload-artifact@v4
-        with: { name: installer, path: dist/*.exe }
+        with:
+          name: DBD-Overlay
+          path: dist/DBD-Overlay.exe
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/DBD-Overlay.exe --prerelease --title "$GITHUB_REF_NAME test build" --notes "Windows 10/11, 64-bit. Single portable exe: download and run, no install. Unsigned: Windows may show a SmartScreen prompt (More info, Run anyway). Callout images are not included; in the app use Map Callouts, Download from hens333.com. Not affiliated with Behaviour Interactive. Use at your own risk."

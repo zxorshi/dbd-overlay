@@ -9,7 +9,7 @@
     "update-data": "node scripts/update-data.mjs",
     "update-assets": "node scripts/update-assets.mjs",
     "test": "node --test",
-    "dist": "npx electron-builder@25 --win nsis"
+    "dist": "npx electron-builder@25 --win portable"
   },
   "build": {
     "appId": "dev.dbdoverlay.app",
@@ -20,16 +20,15 @@
       "assets/**"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.png"
+      "target": "portable",
+      "icon": "assets/icon.png",
+      "signAndEditExecutable": false
     },
-    "asarUnpack": [
-      "src/main/winocr.ps1",
-      "node_modules/tesseract.js/**",
-      "node_modules/tesseract.js-core/**",
-      "node_modules/@tesseract.js-data/**",
-      "node_modules/uiohook-napi/**"
-    ]
+    "npmRebuild": false,
+    "asar": false,
+    "portable": {
+      "artifactName": "DBD-Overlay.exe"
+    }
   },
   "devDependencies": {
     "electron": "^33.4.11"

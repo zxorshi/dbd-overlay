@@ -28,6 +28,15 @@ let tray = null; let quitting = false;
 const PORT = Number(process.env.DBD_OVERLAY_PORT) || 47810;
 let port = PORT; // the port actually bound; moves up if PORT is taken
 
+// Plain-text log in the user data folder (log.txt), for bug reports. Start-up steps and errors only.
+let logFile = '';
+function log(...parts) {
+  if (!logFile) return;
+  try { fs.appendFileSync(logFile, new Date().toISOString() + ' ' + parts.map((x) => (x && x.stack) || String(x)).join(' ') + '\n'); } catch { /* logging must never break the app */ }
+}
+process.on('uncaughtException', (err) => { log('uncaught', err); });
+process.on('unhandledRejection', (err) => { log('unhandled', err); });
+
 let state = defaultState();
 let mainWin = null;
 const overlayWins = new Map();
@@ -69,7 +78,9 @@ function scanCallouts() {
   callouts = Object.create(null);
   // Packaged: a callouts folder beside the exe. From source: ./callouts in the project (git-ignored).
   // The chosen style's download folder wins, then the user's own files, then other styles.
-  const roots = [path.join(calloutDir, 'hens-' + (state.map.style || 'classic')), calloutDir, path.join(app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT, 'callouts')];
+  // A portable exe unpacks to a temp folder: PORTABLE_EXECUTABLE_DIR is where the exe itself sits.
+  const beside = process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT);
+  const roots = [path.join(calloutDir, 'hens-' + (state.map.style || 'classic')), calloutDir, path.join(beside, 'callouts'), path.join(process.resourcesPath || ROOT, 'callouts')];
   const byName = {};
   for (const m of catalog) { byName[norm(m.id)] = m.id; for (const a of m.aliases) byName[a] = byName[a] || m.id; }
   for (const root of roots) {
@@ -125,7 +136,10 @@ function syncDetector() {
   // The app window lists every map name; keep it out of screen capture so it is never read as the game's map.
   if (mainWin && !mainWin.isDestroyed()) mainWin.setContentProtection(Boolean(state.map.auto));
 }
+let scansLogged = 0;
 function onLines(lines, error, engine) {
+  if (scansLogged < 5) { scansLogged += 1; log('ocr read', engine, JSON.stringify(lines.join(' | ').slice(0, 160))); } // first reads only, for bug reports
+  if (error && error !== state.map.lastError) log('ocr error', engine, error);
   state.map.engine = engine || '';
   state.map.lastText = lines.join(' | ').slice(0, 300); state.map.lastError = error || '';
   const ev = session.onLines(lines, { id: state.map.current, locked: state.map.locked }, Date.now());
@@ -299,13 +313,17 @@ app.on('second-instance', () => { if (mainWin) { mainWin.show(); if (mainWin.isM
 
 app.whenReady().then(async () => {
   if (!gotLock) return;
-  load();
+  logFile = path.join(app.getPath('userData'), 'log.txt');
+  try { if (fs.existsSync(logFile) && fs.statSync(logFile).size > 512000) fs.unlinkSync(logFile); } catch { /* keep going */ }
+  log('start', app.getVersion(), process.platform, 'packaged=' + app.isPackaged);
+  load(); log('state loaded');
   calloutDir = path.join(app.getPath('userData'), 'callouts');
   fs.mkdirSync(calloutDir, { recursive: true });
   scanCallouts();
   detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines, winOcr: createWinOcr(app.getPath('temp')), engineChoice: () => state.settings.ocrEngine,
     isLocked: () => state.map.locked, findsMap: (lines) => Boolean(matchMap(lines, catalog)) });
-  try { await serve(); } catch (err) { dialog.showErrorBox('DBD Overlay', 'Could not start the local overlay server: ' + err.message); app.quit(); return; }
+  log('callouts', Object.keys(callouts).length);
+  try { await serve(); log('server on', port); } catch (err) { log('server failed', err); dialog.showErrorBox('DBD Overlay', 'Could not start the local overlay server: ' + err.message); app.quit(); return; }
   ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), platform: process.platform, presets: CHALLENGE_PRESETS, timerPresets: TIMER_PRESETS, maps, calloutDir, perks, characters, art, port, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
   ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else if (what === 'download') downloadCallouts(); else { scanCallouts(); broadcast(); } });
@@ -357,10 +375,10 @@ app.whenReady().then(async () => {
     ]));
     tray.on('click', showMain);
   } catch { /* no tray on this desktop */ }
-  registerHotkeys();
+  registerHotkeys(); log('hotkeys', state.settings.inputMode, 'failed=' + (state.hotkeysFailed || []).join(','));
   syncOverlayWindows();
   checkGame(); setInterval(checkGame, 5000);
-  syncDetector();
+  syncDetector(); log('ready');
 });
 app.on('before-quit', () => { quitting = true; if (stateFile) writeNow(); });
 app.on('will-quit', () => { hooks.shutdown(); if (detector) detector.close(); });

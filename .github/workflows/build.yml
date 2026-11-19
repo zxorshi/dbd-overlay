@@ -1,7 +1,9 @@
 name: Build Windows exe
+# A release is built when the RELEASE file changes on main (it holds the version to publish), or by hand.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['RELEASE']
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,9 +23,10 @@ jobs:
           name: DBD-Overlay
           path: dist/DBD-Overlay.exe
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/DBD-Overlay.exe --prerelease --title "$GITHUB_REF_NAME test build" --notes "Windows 10/11, 64-bit. Single portable exe: download and run, no install. Unsigned: Windows may show a SmartScreen prompt (More info, Run anyway). Callout images are not included; in the app use Map Callouts, Download from hens333.com. Not affiliated with Behaviour Interactive. Use at your own risk."
+          TAG="v$(tr -d '[:space:]' < RELEASE)"
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" dist/DBD-Overlay.exe --target "$GITHUB_SHA" --prerelease --title "$TAG test build" --notes "Windows 10/11, 64-bit. Single portable exe: download and run, no install. Unsigned: Windows may show a SmartScreen prompt (More info, Run anyway). Callout images are not included; in the app use Map Callouts, Download from hens333.com. Not affiliated with Behaviour Interactive. Use at your own risk."

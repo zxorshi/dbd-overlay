@@ -27,7 +27,7 @@ const HOTKEY_LABELS = {
 
 let S = null; let D = null; let cur = 'home';
 const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const A = (name, payload) => `data-act="${name}" data-p='${esc(JSON.stringify(payload || {}))}'`;
 const B = (action, field, extra) => `data-set="${action}" data-field="${field}" data-p='${esc(JSON.stringify(extra || {}))}'`;
 const fmt = (ms) => { const s = Math.abs(ms) / 1000; return (ms < 0 ? '-' : '') + Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
@@ -35,7 +35,7 @@ const slotMs = (x) => x.base + (x.startedAt ? Date.now() - x.startedAt : 0);
 const key = (action) => (S.hotkeys[action] ? `<kbd>${esc(S.hotkeys[action])}</kbd>` : '');
 const art = (kind, id, cls) => (id && D.art[kind].includes(id) ? `<img class="${cls}" src="http://127.0.0.1:${D.port}/art/${kind}/${id}.png" alt="" loading="lazy">` : `<span class="${cls}"></span>`);
 let capturing = null;
-const bindBtn = (action) => `<span class="row"><button class="btn sm ${capturing === action ? 'pri' : ''}" data-bind="${action}">${capturing === action ? 'Press a key' : esc(S.hotkeys[action] || 'none')}</button>${S.hotkeys[action] ? `<button class="btn sm" ${A('hotkey.set', { action, key: '' })} aria-label="Clear binding">✕</button>` : ''}${S.hotkeys[action] && (S.hotkeysFailed || []).includes(S.hotkeys[action]) ? '<span class="bad">not active</span>' : ''}</span>`;
+const bindBtn = (action) => `<span class="row"><button class="btn sm ${capturing === action ? 'pri' : ''}" data-bind="${action}">${capturing === action ? 'Press a key' : esc(S.hotkeys[action] || 'none')}</button>${S.hotkeys[action] ? `<button class="btn sm" ${A('hotkey.set', { action, key: '' })} aria-label="Clear binding">✕</button>` : ''}${S.hotkeys[action] && (S.hotkeysFailed || []).includes(action) ? '<span class="bad">not active</span>' : ''}</span>`;
 function tokenFromCode(code) {
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);
@@ -47,18 +47,15 @@ function capture(e, token) {
   if (!capturing) return;
   e.preventDefault(); e.stopPropagation();
   if (token) { const mods = (e.ctrlKey ? 'Ctrl+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : ''); api.act('hotkey.set', { action: capturing, key: mods + token }); }
-  capturing = null; panel(true);
+  capturing = null; api.suspendHotkeys(false); panel(true);
 }
 document.addEventListener('keydown', (e) => { if (!capturing) return; if (e.key === 'Escape') return capture(e, null); if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return; const t = tokenFromCode(e.code); if (t) capture(e, t); }, true);
 document.addEventListener('mousedown', (e) => { if (capturing && [1, 3, 4].includes(e.button)) capture(e, 'Mouse' + ({ 1: 3, 3: 4, 4: 5 })[e.button]); }, true);
-const opt = (v, label, sel) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${label}</option>`;
+const opt = (v, label, sel) => `<option value="${esc(v)}" ${String(v) === String(sel ?? '') ? 'selected' : ''}>${label}</option>`;
 
 function overlayCard(id) {
   const o = S.overlays[id]; const url = `http://127.0.0.1:${D.port}/overlay/${id}`;
-  return `<div class="card">
-    <h2>Overlay</h2>
-    <div class="preview"><iframe src="${url}" title="Overlay preview"></iframe></div>
-    <div class="row">
+  return `<div class="row">
       <button class="btn ${o.open ? '' : 'pri'}" ${A('overlay.toggle', { id })}>${o.open ? 'Hide overlay' : 'Show on screen'}</button>
       ${id === 'crosshair' ? '' : `<button class="btn" ${A('overlay.set', { id, locked: !o.locked })}>${o.locked ? 'Unlock to move' : 'Lock (click-through)'}</button>`}
     </div>
@@ -69,8 +66,7 @@ function overlayCard(id) {
     </div>
     <div class="field"><span>OBS browser source URL</span>
       <div class="row"><span class="url">${url}</span><button class="btn sm" data-copy="${url}">Copy</button></div></div>
-    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it. Use Size to scale it. Lock it before playing.</p>'}
-  </div>`;
+    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it. Use Size to scale it. Lock it before playing.</p>'}`;
 }
 
 const VIEWS = {
@@ -190,23 +186,42 @@ function rail() {
   }
   $('#rail').innerHTML = h;
 }
-function panel(force) {
-  const el = document.activeElement;
-  if (!force && el && $('#panel').contains(el) && /INPUT|SELECT|TEXTAREA/.test(el.tagName) && el.type !== 'checkbox') return; // do not interrupt editing
-  const [title, sub, body] = VIEWS[cur]();
-  const scroll = $('#panel').scrollTop;
-  const frame = $('#panel iframe');
-  $('#panel').innerHTML = `<div><h1>${title}</h1><p class="sub">${sub}</p></div>` +
-    (S.overlays[cur] ? `<div class="cols"><div class="list" style="gap:16px">${body}</div>${overlayCard(cur)}</div>` : body);
-  // Keep the same preview frame alive across re-renders so it does not flicker.
-  const next = $('#panel iframe');
-  if (frame && next && frame.src === next.src) next.replaceWith(frame);
-  $('#panel').scrollTop = scroll;
+// Rendering. The panel keeps a fixed skeleton per tool: #view (tool controls), a preview frame that is
+// never rebuilt, and #ovctl (overlay controls). A region is replaced only when its HTML changed, never while
+// the user is typing in it or holding a mouse button, and unsaved form fields (those with an id) are kept.
+let shown = null; let lastBody = ''; let lastCtl = ''; let mouseDown = false; let pending = false;
+function swap(el, html) {
+  const drafts = {};
+  el.querySelectorAll('input[id], textarea[id], select[id]').forEach((n) => { drafts[n.id] = n.type === 'checkbox' ? n.checked : n.value; });
+  const open = [...el.querySelectorAll('details')].map((d) => d.open);
+  el.innerHTML = html;
+  for (const [id, v] of Object.entries(drafts)) { const n = el.querySelector('#' + CSS.escape(id)); if (n) { if (n.type === 'checkbox') n.checked = v; else n.value = v; } }
+  el.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
 }
+function panel(force) {
+  if (mouseDown && !force) { pending = true; return; }
+  const root = $('#panel'); const el = document.activeElement;
+  const typing = el && root.contains(el) && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['checkbox', 'range', 'color'].includes(el.type)));
+  if (typing && !force) { pending = true; return; }
+  pending = false;
+  const [title, sub, body] = VIEWS[cur]();
+  const hasOverlay = Boolean(S.overlays[cur]);
+  if (shown !== cur) {
+    root.innerHTML = `<div><h1>${title}</h1><p class="sub">${sub}</p></div>` + (hasOverlay
+      ? `<div class="cols"><div class="list" style="gap:16px" id="view"></div><div class="card"><h2>Overlay</h2><div class="preview"><iframe src="http://127.0.0.1:${D.port}/overlay/${cur}" title="Overlay preview"></iframe></div><div id="ovctl" class="list" style="gap:12px"></div></div></div>`
+      : '<div class="list" style="gap:16px" id="view"></div>');
+    shown = cur; lastBody = ''; lastCtl = ''; root.scrollTop = 0;
+  }
+  if (body !== lastBody) { swap($('#view'), body); lastBody = body; }
+  if (hasOverlay) { const ctl = overlayCard(cur); if (ctl !== lastCtl) { swap($('#ovctl'), ctl); lastCtl = ctl; } }
+}
+document.addEventListener('mousedown', () => { mouseDown = true; }, true);
+document.addEventListener('mouseup', () => { setTimeout(() => { mouseDown = false; if (pending && S) panel(false); }, 0); }, true);
+document.addEventListener('focusout', () => { setTimeout(() => { if (pending && S) panel(false); }, 0); });
 
 document.addEventListener('click', (e) => {
   const bind = e.target.closest('[data-bind]');
-  if (bind) { capturing = capturing === bind.dataset.bind ? null : bind.dataset.bind; panel(true); return; }
+  if (bind) { capturing = capturing === bind.dataset.bind ? null : bind.dataset.bind; api.suspendHotkeys(Boolean(capturing)); panel(true); return; }
   const tool = e.target.closest('[data-tool]');
   if (tool) { cur = tool.dataset.tool; rail(); panel(true); return; }
   const copy = e.target.closest('[data-copy]');
@@ -220,12 +235,14 @@ function onInput(e) {
   const t = e.target;
   const val = t.type === 'checkbox' ? t.checked : t.type === 'number' || t.type === 'range' ? Number(t.value) : t.value;
   if (t.dataset.set) {
-    if (e.type === 'input' && (t.type === 'text' || t.type === 'number')) return; // commit on change
+    const typed = t.type === 'text' || t.type === 'number';
+    if (typed !== (e.type === 'change')) return; // typed fields commit on change; the rest act once, on input
     api.act(t.dataset.set, { ...JSON.parse(t.dataset.p), [t.dataset.field]: val });
+    if (t.tagName === 'SELECT') t.blur();
   } else if (e.type !== 'change') {
     return;
   } else if (t.dataset.pick) {
-    const d = JSON.parse(t.dataset.pick); const q = String(val).trim().toLowerCase().replace(/\s*\(.*$/, ''); const hit = D.perks.find((p) => p.name.toLowerCase() === q || (p.aka || '').toLowerCase() === q);
+    const d = JSON.parse(t.dataset.pick); const q = String(val).trim().toLowerCase().replace(/\s*\(.*$/, ''); const hit = q && D.perks.find((p) => p.name.toLowerCase() === q || (p.aka && p.aka.toLowerCase() === q));
     api.act(d.act, { ...d.p, perk: hit ? hit.id : null });
   } else if (t.dataset.label) {
     const labels = [...S.timer.labels]; labels[Number(t.dataset.label)] = val; api.act('timer.set', { labels });
@@ -234,8 +251,6 @@ function onInput(e) {
   } else if (t.dataset.pool) {
     const ex = new Set(S[t.dataset.pool].excluded); if (val) ex.delete(t.value); else ex.add(t.value);
     api.act(t.dataset.pool + '.set', { excluded: [...ex] });
-  } else if (t.dataset.hotkey) {
-    api.act('hotkey.set', { action: t.dataset.hotkey, key: val.trim() }); t.blur();
   }
 }
 document.addEventListener('input', onInput);
@@ -265,10 +280,10 @@ const FORMS = {
   async leagues() { LEAGUES.msg = 'Loading'; panel(true); const r = await api.leagues(); LEAGUES.list = r.list || null; LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Could not load: ' + r.error : ''; panel(true); },
   async league() { const p = val('lg-preset'); LEAGUES.msg = 'Importing'; panel(true); const r = await api.importLeague(p); LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Import failed: ' + r.error : 'Imported'; panel(true); },
   rules() { api.act('rules.import', { json: val('rs-json') }); },
-  rule() { api.act('challenge.addRule', { text: val('ch-rule') }); panel(true); },
+  rule() { api.act('challenge.addRule', { text: val('ch-rule') }); $('#ch-rule').value = ''; },
   stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills'), streak: $('#st-streak').checked, challenge: $('#st-chal').checked }); },
   export() { api.copy(JSON.stringify(S.stats.matches)); },
-  member() { api.act('league.add', { name: val('lg-name'), role: val('lg-role'), team: val('lg-team') }); panel(true); },
+  member() { api.act('league.add', { name: val('lg-name'), role: val('lg-role'), team: val('lg-team') }); $('#lg-name').value = ''; },
   folder() { api.callouts('open'); },
   download() { api.callouts('download'); },
   rescan() { api.callouts('scan'); },
@@ -283,7 +298,7 @@ Object.assign(VIEWS, {
         <select style="width:auto" aria-label="Role" ${B('builds.update', 'role', { id: x.id })}>${opt('survivor', 'Survivor', x.role)}${opt('killer', 'Killer', x.role)}</select>
         ${x.role === 'killer' ? `<select style="width:auto" aria-label="Killer" ${B('builds.update', 'killer', { id: x.id })}>${charOpts('killer', x.killer)}</select>` : ''}</div>
       <div class="grid2">${x.perks.map((p, i) => pick('builds.setPerk', { id: x.id, slot: i }, p, x.role)).join('')}</div>
-      <div class="row"><input type="text" style="flex:1;width:auto" placeholder="Tags: map, league, opponent" aria-label="Tags" value="${esc(x.tags)}" ${B('builds.update', 'tags', { id: x.id })}></div>
+      <div class="row"><input type="text" style="flex:1;width:auto" placeholder="Tags: map, league, opponent" aria-label="Tags" value="${esc(x.tags || '')}" ${B('builds.update', 'tags', { id: x.id })}></div>
       <div>${issuesHtml(S.derived.buildIssues[x.id] || [], S.derived.ruleset)}</div>
       <div class="row"><button class="btn sm ${x.id === b.activeId ? '' : 'pri'}" ${A('builds.set', { activeId: x.id })}>${x.id === b.activeId ? 'On overlay' : 'Show on overlay'}</button>
         <button class="btn sm warn" ${A('builds.remove', { id: x.id })}>Delete</button></div></div>`).join('');
@@ -340,17 +355,19 @@ Object.assign(VIEWS, {
         <div class="row"><label class="row">Killer side <select style="width:auto" data-killerteam>${opt(0, esc(sc.teams[0]), c.killerTeam)}${opt(1, esc(sc.teams[1]), c.killerTeam)}</select></label>
           <select style="width:auto" aria-label="Killer" ${B('score.current', 'killer')}>${charOpts('killer', c.killer)}</select>
           ${d.pending ? `<span class="note">To beat: ${d.pending.stages} stages, ${d.pending.gensLeft} gens left</span>` : ''}</div>
-        <div class="row">${(c.hooks || [0, 0, 0, 0]).map((h, i) => `<div class="slot ${h === 3 ? 'dead' : ''}"><span class="note">${esc(S.lobby.survivors[i].name)}</span>
+        <div class="grid2">${(c.hooks || [0, 0, 0, 0]).map((h, i) => `<div class="slot ${h === 3 ? 'dead' : ''}"><span class="note">${esc(S.lobby.survivors[i].name)}</span>
             <span class="pips">${[1, 2, 3].map((n) => `<i class="${h >= n ? 'on' : ''}"></i>`).join('')}</span>
             <div class="row"><button class="btn sm" ${A('score.hook', { i, delta: -1 })}>−</button><button class="btn sm pri" ${A('score.hook', { i, delta: 1 })}>Hook</button><button class="btn sm warn" ${A('score.hook', { i, dead: true })}>Dead</button></div></div>`).join('')}</div>
-        <div class="row"><div class="slot"><span class="note">Hook stages</span><span class="big">${c.stages}<span class="note"> / 12</span></span></div>${bump('gensLeft', 'Gens left', 5)}<div class="slot"><span class="note">Kills</span><span class="big">${c.kills}<span class="note"> / 4</span></span></div></div>
+        <div class="row"><div class="slot"><span class="note">Hook stages</span><span class="big">${c.stages}<span class="note"> / 12</span></span></div>
+          <div class="slot"><span class="note">Gens left</span><span class="big">${c.gensLeft}<span class="note"> / 5</span></span><div class="row"><button class="btn sm pri" ${A('score.bump', { field: 'gensLeft', delta: -1 })}>Gen done ${key('score.bump:gen')}</button><button class="btn sm" ${A('score.bump', { field: 'gensLeft', delta: 1 })}>Undo</button></div></div>
+          <div class="slot"><span class="note">Kills</span><span class="big">${c.kills}<span class="note"> / 4</span></span></div></div>
         <div class="row"><button class="btn pri" ${A('score.endGame')}>End game</button><button class="btn" ${A('score.undoGame')}>Undo last game</button><button class="btn warn" ${A('score.reset')}>Reset match</button></div>
         <div class="row"><span class="note">Disconnect</span><button class="btn sm" ${A('score.dc', { side: 'killer' })}>Killer left (0 gens left)</button><button class="btn sm" ${A('score.dc', { side: 'survivor' })}>Survivor left (12 stages, 4 kills)</button></div>
         <p class="note">Press Hook each time a survivor is hooked or reaches the next stage. Dead sets a survivor to 3 stages. Survivor names come from Lobby Perks.</p></div>
       ${hist ? `<div class="card"><h2>Sets</h2><table>${hist}</table></div>` : ''}`];
   },
   stats() {
-    const d = S.derived.stats; const role = S._statRole || 'killer';
+    const d = S.derived.stats; const role = 'killer';
     const rows = d.by.map((r) => `<tr><td><span class="row">${art('portraits', r.key, 'portrait sm')}${esc(cname(r.key) || r.key)}</span></td><td>${r.played}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td>${r.rate}%</td></tr>`).join('');
     const recent = S.stats.matches.slice(-8).reverse().map((m) => `<tr><td>${new Date(m.ts).toLocaleDateString()}</td><td>${esc(cname(m.character) || m.role)}</td><td>${esc(m.map)}</td><td>${m.result}</td><td>${m.stages}</td><td>${m.gensLeft}</td><td>${m.kills}</td><td><button class="btn sm warn" ${A('stats.remove', { ts: m.ts })} aria-label="Remove match">✕</button></td></tr>`).join('');
     return ['Statistics', 'Local match log. Stored on this computer only.', `<div class="card"><h2>Add match</h2>
@@ -391,7 +408,7 @@ document.addEventListener('change', (e) => {
   else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
   else if ('mappick' in t.dataset) { api.act('map.pick', { id: t.value }); t.blur(); }
   else if ('penalty' in t.dataset) api.act('timer.set', { penaltyMs: Math.max(1, Number(t.value)) * 1000 });
-  else if (t.id === 'st-role') S._statRole = t.value;
+  
 });
 
 VIEWS.map = () => {

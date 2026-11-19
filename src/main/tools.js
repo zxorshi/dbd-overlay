@@ -141,7 +141,10 @@ const actions = {
   'perks.fireAll'(s, _p, { now }) { s.perks.list.forEach((p) => { if (p.armed) p.endsAt = now + p.seconds * 1000; }); },
   'perks.fire'(s, { id }, { now }) { const p = s.perks.list.find((x) => x.id === id); if (p) p.endsAt = now + p.seconds * 1000; },
   'perks.clear'(s) { s.perks.list.forEach((p) => { p.endsAt = null; }); },
-  'perks.update'(s, { id, ...fields }) { const p = s.perks.list.find((x) => x.id === id); if (p) Object.assign(p, fields); },
+  'perks.update'(s, { id, ...fields }) {
+    if ('seconds' in fields) fields.seconds = clamp(Number(fields.seconds) || 1, 1, 3600);
+    const p = s.perks.list.find((x) => x.id === id); if (p) Object.assign(p, fields);
+  },
   'perks.add'(s, { name = 'New timer', seconds = 30 }, { now }) {
     s.perks.list.push({ id: 't' + now, name, seconds, armed: true, tone: 600, endsAt: null });
   },
@@ -312,7 +315,10 @@ Object.assign(actions, {
     const fam = catalog.filter((m) => m.family === cur.family);
     s.map.current = fam[(fam.indexOf(cur) + 1) % fam.length].id;
   },
-  'settings.set'(s, f) { Object.assign(s.settings, f); },
+  'settings.set'(s, f) {
+    if ('scanSeconds' in f) f.scanSeconds = clamp(Number(f.scanSeconds) || 2, 1, 10);
+    Object.assign(s.settings, f);
+  },
   'overlays.toggleAll'(s) { s.settings.overlaysHidden = !s.settings.overlaysHidden; },
 
   // ---- challenges

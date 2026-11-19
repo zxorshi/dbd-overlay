@@ -153,8 +153,10 @@ Object.assign(render, {
 
 render.map = (s) => {
   const m = (data.maps || []).find((x) => x.id === s.map.current);
-  // In the app window the map shows only while locked; the in-app preview and OBS always show the current map.
-  if (!m || (isWindow && !s.map.locked && s.overlays.map.locked)) return isWindow && s.overlays.map.locked ? '' : '<div class="plate"><span class="lab">Waiting for map</span></div>';
+  // Over the game the callout shows only while locked onto a map. Otherwise the detector, which reads the
+  // screen, would read the old map's name off this overlay and lock onto it again.
+  if (isWindow && !s.map.locked) return s.overlays.map.locked ? '' : '<div class="plate"><span class="lab">Map callout: waiting for a map</span></div>';
+  if (!m) return '<div class="plate"><span class="lab">Waiting for map</span></div>';
   const head = `<div class="plate slim"><span class="lab">${esc(m.realm)}</span><span class="name">${esc(m.name)}</span></div>`;
   if ((s.calloutIds || []).includes(m.id)) return `<div class="mapbox"><img class="callout" src="/callout/${m.id}" alt="">${head}</div>`;
   let marks = '';

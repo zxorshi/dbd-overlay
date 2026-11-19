@@ -98,8 +98,11 @@ function createDetector({ cacheDir, grab, onLines }) {
   async function recognize(png) {
     if (!worker) {
       const { createWorker } = require('tesseract.js');
+      // Packaged builds keep these modules outside the asar archive (see asarUnpack in package.json).
+      const real = (f) => f.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
       worker = await createWorker('eng', 1, {
-        langPath: path.join(path.dirname(require.resolve('@tesseract.js-data/eng/package.json')), '4.0.0_best_int'),
+        langPath: real(path.join(path.dirname(require.resolve('@tesseract.js-data/eng/package.json')), '4.0.0_best_int')),
+        workerPath: real(path.join(path.dirname(require.resolve('tesseract.js/package.json')), 'src', 'worker-script', 'node', 'index.js')),
         cachePath: cacheDir, gzip: true,
       });
     }

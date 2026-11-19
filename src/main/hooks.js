@@ -34,25 +34,26 @@ const isMouse = (binding) => /(^|\+)Mouse[3-5]$/.test(binding);
 
 let listeners = null;
 function stopHook() {
-  if (uio && listeners) { uio.uIOhook.off('keydown', listeners.key); uio.uIOhook.off('mousedown', listeners.mouse); try { uio.uIOhook.stop(); } catch { /* not running */ } }
+  if (uio && listeners) { uio.uIOhook.off('keydown', listeners.key); uio.uIOhook.off('keyup', listeners.up); uio.uIOhook.off('mousedown', listeners.mouse); try { uio.uIOhook.stop(); } catch { /* not running */ } }
   listeners = null;
 }
 
-// bindings: { action: binding }. Returns the list of bindings that could not be registered.
+// bindings: { action: binding }. Returns the actions whose binding could not be registered.
 function apply(bindings, mode, onAction) {
   globalShortcut.unregisterAll(); stopHook();
   const failed = []; const entries = Object.entries(bindings).filter(([, b]) => b);
   if (mode === 'passthrough' && uio) {
-    const table = entries.map(([action, b]) => { const p = parse(b); const code = isMouse(b) ? Number(p.key.slice(5)) : uio.UiohookKey[uioName(p.key)]; if (code === undefined) failed.push(b); return { action, ...p, code, mouse: isMouse(b) }; });
+    const table = entries.map(([action, b]) => { const p = parse(b); const code = isMouse(b) ? Number(p.key.slice(5)) : uio.UiohookKey[uioName(p.key)]; if (code === undefined) failed.push(action); return { action, ...p, code, mouse: isMouse(b) }; });
+    const down = new Set(); // held keys: the OS repeats keydown while a key is held, the action must fire once
     const fire = (e, mouse, code) => { for (const t of table) if (t.mouse === mouse && t.code === code && t.ctrl === Boolean(e.ctrlKey) && t.alt === Boolean(e.altKey) && t.shift === Boolean(e.shiftKey)) onAction(t.action); };
-    listeners = { key: (e) => fire(e, false, e.keycode), mouse: (e) => fire(e, true, e.button) };
-    uio.uIOhook.on('keydown', listeners.key); uio.uIOhook.on('mousedown', listeners.mouse);
-    try { uio.uIOhook.start(); } catch { return entries.map(([, b]) => b); }
+    listeners = { key: (e) => { if (down.has(e.keycode)) return; down.add(e.keycode); fire(e, false, e.keycode); }, up: (e) => down.delete(e.keycode), mouse: (e) => fire(e, true, e.button) };
+    uio.uIOhook.on('keydown', listeners.key); uio.uIOhook.on('keyup', listeners.up); uio.uIOhook.on('mousedown', listeners.mouse);
+    try { uio.uIOhook.start(); } catch { return entries.map(([a]) => a); }
     return failed;
   }
   for (const [action, b] of entries) {
-    if (isMouse(b)) { failed.push(b); continue; } // mouse buttons need passthrough mode
-    try { if (!globalShortcut.register(b, () => onAction(action))) failed.push(b); } catch { failed.push(b); }
+    if (isMouse(b)) { failed.push(action); continue; } // mouse buttons need passthrough mode
+    try { if (!globalShortcut.register(b, () => onAction(action))) failed.push(action); } catch { failed.push(action); }
   }
   return failed;
 }

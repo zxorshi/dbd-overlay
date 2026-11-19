@@ -9,7 +9,7 @@
     "update-data": "node scripts/update-data.mjs",
     "update-assets": "node scripts/update-assets.mjs",
     "test": "node --test",
-    "dist": "electron-builder --win nsis"
+    "dist": "npx electron-builder@25 --win nsis"
   },
   "build": {
     "appId": "dev.dbdoverlay.app",

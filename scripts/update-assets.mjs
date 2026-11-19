@@ -73,6 +73,27 @@ for (const j of jobs) {
   manifest[j.dir].push(j.id);
 }
 missing.length = 0; missing.push(...still);
+
+// Authoritative pass for perks: the icon shown on each perk's own wiki page replaces whatever the name
+// lookups above found, so a perk can never carry another perk's icon.
+const list = JSON.parse(readFileSync('data/perks.json', 'utf8'));
+let confirmed = 0;
+for (let i = 0; i < list.length; i += 40) {
+  const batch = list.slice(i, i + 40);
+  const q = await json(wiki + 'prop=pageimages&piprop=name|thumbnail&pithumbsize=128&redirects=1&titles=' + encodeURIComponent(batch.map((p) => p.name).join('|')));
+  const back = {}; for (const n of [...(q.query?.normalized || []), ...(q.query?.redirects || [])]) back[n.to] = back[n.from] || n.from;
+  for (const pg of Object.values(q.query?.pages || {})) {
+    const perk = batch.find((p) => p.name === pg.title || p.name === back[pg.title] || p.name === back[back[pg.title]]);
+    if (!perk || !/icons?Perks/i.test(pg.pageimage || '') || !pg.thumbnail) continue;
+    const res = await get(pg.thumbnail.source); if (!res) continue;
+    writeFileSync(`assets/game/perks/${perk.id}.png`, Buffer.from(await res.arrayBuffer()));
+    if (!manifest.perks.includes(perk.id)) manifest.perks.push(perk.id);
+    confirmed += 1;
+  }
+}
+console.log(`perk icons confirmed from perk pages: ${confirmed} of ${list.length}`);
+const stillMissing = list.filter((p) => !manifest.perks.includes(p.id)).map((p) => p.name);
+missing.splice(0, missing.length, ...missing.filter((n) => !list.some((p) => (p.name === n || p.aka === n) && manifest.perks.includes(p.id))), ...stillMissing.filter((n) => !missing.includes(n)));
 manifest.perks.sort(); manifest.portraits.sort();
 writeFileSync('assets/game/manifest.json', JSON.stringify(manifest));
 console.log(`perks ${manifest.perks.length}, portraits ${manifest.portraits.length}, missing ${missing.length}`);

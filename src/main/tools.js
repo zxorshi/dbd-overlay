@@ -61,7 +61,7 @@ function defaultState() {
     stats: { matches: [] },
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
     league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
-    map: { current: null, locked: false, auto: true, region: 'full', lastText: '', lastError: '', download: '' },
+    map: { current: null, locked: false, auto: true, region: 'auto', lastText: '', lastError: '', download: '' },
     settings: { ocrEngine: 'auto', inputMode: 'standard', closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
   };
 }

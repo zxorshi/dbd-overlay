@@ -5,7 +5,7 @@ const leagues = require('./leagues');
 const hooks = require('./hooks');
 const { createWinOcr } = require('./winocr');
 const { prepare } = require('./prep');
-const { createDetector, createSession, buildCatalog, norm } = require('./detect');
+const { createDetector, createSession, buildCatalog, matchMap, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -104,14 +104,14 @@ async function downloadCallouts() {
   broadcast();
 }
 
-async function grabScreen([x, y, w, h]) {
+async function grabScreen(region, opts) {
   const { size } = screen.getPrimaryDisplay();
   const width = Math.min(1920, size.width); const height = Math.round((width * size.height) / size.width);
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
   const primary = String(screen.getPrimaryDisplay().id);
   const src = sources.find((x) => x.display_id === primary) || sources[0];
   const img = src && src.thumbnail; if (!img || img.isEmpty()) return null;
-  return prepare(img, [x, y, w, h]);
+  return prepare(img, region, opts);
 }
 
 // Is the game running? Process list only (tasklist); the game process itself is never opened.
@@ -311,7 +311,8 @@ app.whenReady().then(async () => {
   calloutDir = path.join(app.getPath('userData'), 'callouts');
   fs.mkdirSync(calloutDir, { recursive: true });
   scanCallouts();
-  detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines, winOcr: createWinOcr(app.getPath('temp')), engineChoice: () => state.settings.ocrEngine });
+  detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines, winOcr: createWinOcr(app.getPath('temp')), engineChoice: () => state.settings.ocrEngine,
+    isLocked: () => state.map.locked, findsMap: (lines) => Boolean(matchMap(lines, catalog)) });
   try { await serve(); } catch (err) { dialog.showErrorBox('DBD Overlay', 'Could not start the local overlay server: ' + err.message); app.quit(); return; }
   ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), platform: process.platform, presets: CHALLENGE_PRESETS, timerPresets: TIMER_PRESETS, maps, calloutDir, perks, characters, art, port, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));

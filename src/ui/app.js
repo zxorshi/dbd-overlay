@@ -486,7 +486,7 @@ VIEWS.map = () => {
     <div class="card"><h2>Detection</h2>
       <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${B('map.set', 'auto')}> Detect the map from the screen</label>
         <label><input type="checkbox" ${S.settings.onlyWhenGameRuns ? 'checked' : ''} ${B('settings.set', 'onlyWhenGameRuns')}> Only while the game is running</label></div>
-      <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
+      <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('auto', 'Automatic (map name area, then end screen)', m.region)}${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
         <label class="row">Every <input type="number" min="1" max="10" value="${S.settings.scanSeconds}" ${B('settings.set', 'scanSeconds')}> s</label>
         ${D.platform === 'win32' ? `<label class="row">Reader <select style="width:auto" ${B('settings.set', 'ocrEngine')}>${opt('auto', 'Windows OCR, then Tesseract', S.settings.ocrEngine)}${opt('tesseract', 'Tesseract only', S.settings.ocrEngine)}</select></label>` : ''}
         <button class="btn" data-form="detect">Read screen now</button></div>

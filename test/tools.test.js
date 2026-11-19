@@ -119,7 +119,7 @@ test('map session: locks after two reads, unlocks at scoreboard, cooldown blocks
   assert.equal(s.onLines(['Blood Lodge'], cur, 0), null);
   const ev = s.onLines(['Blood Lodge'], cur, 2000);
   assert.ok(ev.lock); cur.id = ev.lock; cur.locked = true;
-  assert.deepEqual(s.onLines(['SCOREBOARD', 'Blood Lodge'], cur, 60000), { unlock: true }); cur.locked = false;
+  assert.deepEqual(s.onLines(['MATCH DID YOU HAVE FUN? |', 'SCOREBOARD 00000 |B]', 'Blood Lodge'], cur, 60000), { unlock: true }); cur.locked = false;
   assert.equal(s.onLines(['Blood Lodge'], cur, 62000), null);
   assert.equal(s.onLines(['Blood Lodge'], cur, 64000), null);
   s.onLines(['Gas Heaven'], cur, 90000);
@@ -164,4 +164,15 @@ test('streak: one streak per character', () => {
   assert.equal(s.streak.current, 0); dispatch(s, 'streak.win'); dispatch(s, 'streak.win');
   dispatch(s, 'streak.character', { id: '' }, ctx(0)); assert.equal(s.streak.current, 1);
   dispatch(s, 'streak.character', { id: 'K' }, ctx(0)); assert.equal(s.streak.current, 2);
+});
+
+test('map match: real OCR output from game frames', () => {
+  const m = (lines) => (matchMap(lines, catalog) || {}).name;
+  assert.equal(m(['2A §', 'DEADDAWGSALOON (1 "= "3', 'GRAVE OF GLENVALE i ) 5 A']), 'Dead Dawg Saloon');
+  assert.equal(m(['THE UNDERG ND COMPLEX', 'HAWKINSHNAT | ONLIEENB ORATORY:']), matchMap(['The Underground Complex'], catalog).name);
+  assert.equal(m(['BADHAM PRESCHOUL] +']), 'Preschool I');
+  assert.equal(m(['LC BA LANDING oh Pa 4', 'SDVARKADEEPWOOD']), 'Toba Landing');
+  assert.equal(m(['GROANING STOREHOUSE i']), 'Groaning Storehouse');
+  assert.equal(m(['CAMPOS PODRIDOS |']), undefined);
+  assert.equal(m(['i ’ Ing W [ =', 'AK']), undefined);
 });

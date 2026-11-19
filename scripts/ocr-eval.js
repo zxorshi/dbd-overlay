@@ -3,19 +3,25 @@
 const { app, nativeImage } = require('electron');
 const fs = require('node:fs'); const path = require('node:path');
 const { prepare } = require('../src/main/prep');
-const { createDetector, buildCatalog, matchMap, REGIONS } = require('../src/main/detect');
+const { createDetector, buildCatalog, matchMap, REGIONS, isEndScreen } = require('../src/main/detect');
 const catalog = buildCatalog(require('../data/maps.json'));
-const [dir, region = 'full', scale = '1'] = process.argv.slice(process.argv.findIndex((a) => a.endsWith('ocr-eval.js')) + 1);
+const [dir, region = 'auto'] = process.argv.slice(process.argv.findIndex((a) => a.endsWith('ocr-eval.js')) + 1);
 app.disableHardwareAcceleration();
 app.whenReady().then(async () => {
-  const det = createDetector({ cacheDir: app.getPath('temp'), grab: async () => null, onLines() {} });
+  let frame = null; let locked = false;
+  const det = createDetector({ cacheDir: app.getPath('temp'), grab: async (r, o) => prepare(frame, r, o), onLines() {}, isLocked: () => locked, findsMap: (l) => Boolean(matchMap(l, catalog)) });
+  let hits = 0; let n = 0;
   for (const f of fs.readdirSync(dir).sort()) {
-    const img = nativeImage.createFromPath(path.join(dir, f));
-    if (img.isEmpty()) { console.log(f, 'UNREADABLE'); continue; }
+    frame = nativeImage.createFromPath(path.join(dir, f));
+    if (frame.isEmpty()) { console.log(f, 'UNREADABLE'); continue; }
+    if (frame.getSize().width > 1920) frame = frame.resize({ width: 1920, quality: 'best' }); // the app captures at 1920 wide at most
+    locked = f.startsWith('c'); // c* files are end screens: read them the way a locked session does
     const t0 = Date.now();
-    const lines = await det.recognize(prepare(img, REGIONS[region], { scale: Number(scale) }));
-    const m = matchMap(lines, catalog); const end = lines.some((l) => /^\s*(continue|scoreboard|match\s*result)\s*$/i.test(l));
-    console.log(`${f} ${img.getSize().width}x${img.getSize().height} ${Date.now() - t0}ms => ${m ? m.name : '-'}${end ? ' [END SCREEN]' : ''} | ${lines.join(' / ').slice(0, 200)}`);
+    const lines = await det.read(region);
+    const m = matchMap(lines, catalog); const end = isEndScreen(lines);
+    n += 1; if (m || end) hits += 1;
+    console.log(`${f} ${Date.now() - t0}ms => ${m ? m.name : '-'}${end ? ' [END SCREEN]' : ''} | ${lines.join(' / ').slice(0, 110)}`);
   }
+  console.log(`detected ${hits} of ${n}`);
   await det.close(); app.exit(0);
 });

@@ -170,3 +170,18 @@ render.map = (s) => {
   for (let i = 1; i <= 12; i++) { const a = ((i * 30 - 90) * Math.PI) / 180; marks += `<text x="${100 + 84 * Math.cos(a)}" y="${100 + 84 * Math.sin(a)}">${i}</text>`; }
   return `<div class="mapbox"><svg class="ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="96" fill="rgba(12,18,14,0.55)" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor" font-size="13" font-weight="700" text-anchor="middle" dominant-baseline="central">${marks}</g></svg>${head}</div>`;
 };
+
+// Controller support: report button presses (rising edge) to the app. Runs in app windows only.
+if (isWindow) {
+  const held = new Set();
+  setInterval(() => {
+    for (const pad of navigator.getGamepads ? navigator.getGamepads() : []) {
+      if (!pad) continue;
+      pad.buttons.forEach((b, i) => {
+        const k = pad.index + ':' + i;
+        if (b.pressed && !held.has(k)) { held.add(k); fetch('/pad/' + i, { method: 'POST' }).catch(() => {}); }
+        else if (!b.pressed) held.delete(k);
+      });
+    }
+  }, 16);
+}

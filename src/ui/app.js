@@ -33,10 +33,10 @@ const A = (name, payload) => `data-act="${name}" data-p='${esc(JSON.stringify(pa
 const B = (action, field, extra) => `data-set="${action}" data-field="${field}" data-p='${esc(JSON.stringify(extra || {}))}'`;
 const fmt = (ms) => { const s = Math.abs(ms) / 1000; return (ms < 0 ? '-' : '') + Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
 const slotMs = (x) => x.base + (x.startedAt ? Date.now() - x.startedAt : 0);
-const key = (action) => (S.hotkeys[action] ? `<kbd>${esc(S.hotkeys[action])}</kbd>` : '');
+const key = (action) => (S.hotkeys[action] ? `<kbd>${esc(keyLabel(S.hotkeys[action]))}</kbd>` : '');
 const art = (kind, id, cls) => (id && D.art[kind].includes(id) ? `<img class="${cls}" src="http://127.0.0.1:${D.port}/art/${kind}/${id}.png" alt="" loading="lazy">` : `<span class="${cls}"></span>`);
 let capturing = null;
-const bindBtn = (action) => `<span class="row"><button class="btn sm ${capturing === action ? 'pri' : ''}" data-bind="${action}">${capturing === action ? 'Press a key' : esc(S.hotkeys[action] || 'none')}</button>${S.hotkeys[action] ? `<button class="btn sm" ${A('hotkey.set', { action, key: '' })} aria-label="Clear binding">✕</button>` : ''}${S.hotkeys[action] && (S.hotkeysFailed || []).includes(action) ? '<span class="bad">not active</span>' : ''}</span>`;
+const bindBtn = (action) => `<span class="row"><button class="btn sm ${capturing === action ? 'pri' : ''}" data-bind="${action}">${capturing === action ? 'Press a key' : esc(keyLabel(S.hotkeys[action]) || 'none')}</button>${S.hotkeys[action] ? `<button class="btn sm" ${A('hotkey.set', { action, key: '' })} aria-label="Clear binding">✕</button>` : ''}${S.hotkeys[action] && (S.hotkeysFailed || []).includes(action) ? '<span class="bad">not active</span>' : ''}</span>`;
 function tokenFromCode(code) {
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);
@@ -44,6 +44,17 @@ function tokenFromCode(code) {
   if (/^Numpad\d$/.test(code)) return 'num' + code.slice(6);
   return ({ Space: 'Space', Tab: 'Tab', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Insert: 'Insert', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec', CapsLock: 'Capslock' })[code] || null;
 }
+const PAD_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Back', 'Start', 'L stick', 'R stick', 'D-pad up', 'D-pad down', 'D-pad left', 'D-pad right'];
+const keyLabel = (k) => { const m = /^Pad(\d+)$/.exec(k || ''); return m ? 'Pad ' + (PAD_NAMES[m[1]] || m[1]) : k; };
+// While capturing, a controller button press also binds.
+setInterval(() => {
+  if (!capturing || !navigator.getGamepads) return;
+  for (const pad of navigator.getGamepads()) {
+    if (!pad) continue;
+    const i = pad.buttons.findIndex((b) => b.pressed);
+    if (i >= 0) { api.act('hotkey.set', { action: capturing, key: 'Pad' + i }); cancelCapture(); return; }
+  }
+}, 30);
 function cancelCapture() { if (!capturing) return; capturing = null; api.suspendHotkeys(false); if (S) panel(true); }
 let loneMod = null; // a modifier pressed alone during capture binds on release
 function capture(e, token) {
@@ -185,7 +196,7 @@ const VIEWS = {
   settings() {
     const rows = Object.entries(HOTKEY_LABELS).map(([a, label]) => `<div class="result"><span>${label}</span>${bindBtn(a)}</div>`).join('');
     return ['Settings', 'Global hotkeys and overlay options.', `<div class="card"><h2>Bindings</h2><div class="keys">${rows}</div>
-      <p class="note">Click a binding, then press the key or mouse button (middle or side buttons). Esc cancels.</p></div>
+      <p class="note">Click a binding, then press a key, a mouse button (middle or side) or a controller button. Esc cancels. Controller buttons work while at least one overlay is shown on screen.</p></div>
       <div class="card"><h2>Input mode</h2>
         <div class="row"><select style="width:auto" aria-label="Input mode" ${B('settings.set', 'inputMode')}>${opt('standard', 'Standard: the key is taken by this app', S.settings.inputMode)}${S.passthroughAvailable ? opt('passthrough', 'Pass-through: the key also reaches the game', S.settings.inputMode) : ''}</select></div>
         <p class="note">Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons and a lone Ctrl, Shift or Alt. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>

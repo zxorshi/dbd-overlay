@@ -225,6 +225,7 @@ function registerHotkeys() {
 }
 
 // ---- local server (overlay pages + live state) -----------------------------
+const lastPad = {}; let padSuspended = false;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 function serve() {
   const dir = path.join(ROOT, 'src', 'overlay');
@@ -246,6 +247,16 @@ function serve() {
     if (url.pathname === '/data') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ perks, characters, art, maps }));
+    }
+    // Controller buttons: overlay windows poll the gamepad and report presses here.
+    const pad = req.method === 'POST' && url.pathname.match(/^\/pad\/(\d{1,2})$/);
+    if (pad) {
+      const key = 'Pad' + Number(pad[1]); const now = Date.now();
+      if (!padSuspended && now - (lastPad[key] || 0) > 150) { // several overlay windows report the same press
+        lastPad[key] = now;
+        for (const [action, b] of Object.entries(state.hotkeys)) if (b === key) runHotkey(action);
+      }
+      res.writeHead(204); return res.end();
     }
     const sz = req.method === 'POST' && url.pathname.match(/^\/size\/([A-Za-z]+)$/);
     if (sz) {
@@ -323,7 +334,7 @@ app.whenReady().then(async () => {
       state = merge(defaultState(), d); registerHotkeys(); syncOverlayWindows(); syncDetector(); broadcast(); save(); return {};
     } catch (e) { return { error: String(e.message || e) }; }
   });
-  ipcMain.on('hotkeys.suspend', (_e, on) => { if (on) hooks.stop(); else registerHotkeys(); });
+  ipcMain.on('hotkeys.suspend', (_e, on) => { padSuspended = Boolean(on); if (on) hooks.stop(); else registerHotkeys(); });
   // Snap an overlay to a screen corner or edge of the primary display.
   ipcMain.on('overlay.snap', (_e, id, where) => {
     const o = state.overlays[id]; if (!o) return;
@@ -344,7 +355,7 @@ app.whenReady().then(async () => {
   mainWin.loadFile(path.join(ROOT, 'src', 'ui', 'index.html'));
   mainWin.on('close', (e) => { if (state.settings.closeToTray && tray && !quitting) { e.preventDefault(); mainWin.hide(); } });
   // Capture mode suspends hotkeys; never leave them suspended once the window is out of use.
-  mainWin.on('blur', () => registerHotkeys()); mainWin.on('hide', () => registerHotkeys());
+  mainWin.on('blur', () => { padSuspended = false; registerHotkeys(); }); mainWin.on('hide', () => { padSuspended = false; registerHotkeys(); });
   mainWin.on('closed', () => app.quit());
   try {
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));

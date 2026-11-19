@@ -31,6 +31,7 @@ function parse(binding) {
   return { key, ctrl: mods.has('ctrl'), alt: mods.has('alt'), shift: mods.has('shift') };
 }
 const isMouse = (binding) => /(^|\+)Mouse[3-5]$/.test(binding);
+const isPad = (binding) => /^Pad\d+$/.test(binding); // controller buttons are read by the overlay pages, not here
 
 const MOD_KEYS = { Ctrl: 'Ctrl', Shift: 'Shift', Alt: 'Alt' }; // a lone modifier can be a binding in pass-through mode
 
@@ -59,7 +60,7 @@ function stopHook() { hookOn = false; table = []; }
 // bindings: { action: binding }. Returns the actions whose binding could not be registered.
 function apply(bindings, mode, onAction) {
   globalShortcut.unregisterAll(); stopHook();
-  const failed = []; const entries = Object.entries(bindings).filter(([, b]) => b);
+  const failed = []; const entries = Object.entries(bindings).filter(([, b]) => b && !isPad(b));
   if (mode === 'passthrough' && uio) {
     if (!ensureHook()) return entries.map(([a]) => a);
     table = entries.map(([action, b]) => {

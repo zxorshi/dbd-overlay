@@ -2,30 +2,37 @@
 
 Free, open source overlay toolkit for Dead by Daylight. Built for scrim, league and 1v1 players, usable by anyone.
 
-Not affiliated with or endorsed by Behaviour Interactive. Use at your own risk: Behaviour has not published a position on overlay tools. This app reads no game memory and sends no input to the game.
+Not affiliated with or endorsed by Behaviour Interactive. Behaviour has not published a position on overlay tools: use at your own risk. This app reads the screen only. It never reads game memory and never sends input to the game.
+
+![1v1 timer](docs/screenshots/timer.png)
 
 ## Tools
 
-| Tool | Status |
+Every tool has an in-app panel and an overlay. An overlay can sit over the game (borderless or windowed mode) or go into OBS as a browser source from its local URL.
+
+| Tool | What it does |
 |---|---|
-| 1v1 Timer (two runs, rounds, penalty) | Working |
-| Crosshair | Working |
-| Perk Timers (hotkey-fired, tone per timer) | Working |
-| Streak Counter | Working |
-| Perk Shuffle | Working |
-| Killer Shuffle | Working |
-| Build Library with ruleset check | Working |
-| Lobby Perks | Working, manual entry |
-| Match Scoreboard (sets, hook stages, gens, kills) | Working, manual entry |
-| Statistics | Working, manual entry |
-| Challenges | Working |
-| Map Callouts | Working with your own images. Map detection by screen reading: untested against the game |
-| My League (roster, roles) | Local only |
-| Party, live league tracking, friends | Planned, needs a server. See `docs/ONLINE.md` |
+| 1v1 Timer | Two runs, round score, round history, penalty key, warning color near the time to beat |
+| Crosshair | Cross, dot, circle or T. Size, thickness, gap, outline, offset |
+| Perk Timers | Arm timers, fire all with one key or each with its own key. Presets, tone per timer |
+| Streak Counter | Current, best, attempt. Win and loss keys, undo |
+| Perk Shuffle | Random loadout from a perk pool, lockable slots |
+| Killer Shuffle | Random killer from a roster, no repeats until all are played |
+| Map Callouts | Clock callout image for the current map. Map read from the screen, locks for the match, unlocks at the end screen |
+| Build Library | Saved builds checked against a league ruleset, per killer |
+| Lobby Perks | Four survivors' perks, with team rule check |
+| Match Scoreboard | Sets, per-survivor hook states, gens left, kills. Mirror or win-condition format |
+| Statistics | Local match log, win rate per character |
+| Challenges | Long runs with stacking rules |
+| My League | Roster and roles, local only |
 
-Every tool has an in-app panel and an overlay. An overlay can be shown as a window over the game (borderless or windowed mode) or added to OBS as a browser source from its local URL.
+Not built: party, live league tracking, friends, stat comparison. They need a server. See `docs/ONLINE.md`.
 
-## Run
+## Status
+
+Developed and tested on Linux. On Windows, beside the game, these are untested: overlays over the game, hotkeys while the game is focused, map detection on real game frames, pass-through input.
+
+## Run from source
 
 ```bash
 npm install
@@ -39,22 +46,38 @@ npm start
 npm test
 ```
 
+## Input modes
+
+| Mode | Behavior |
+|---|---|
+| Standard | The bound key is taken by the app and does not reach the game. Keyboard only. No extra rights |
+| Pass-through | The key also reaches the game (crouch can start the timer). Mouse side and middle buttons can be bound. May need the app to run as administrator |
+
+## Data, art and credits
+
+| Item | Source | Terms |
+|---|---|---|
+| Perk and character names | dbd.tricky.lol community API, current names from deadbydaylight.wiki.gg | Names are Behaviour's |
+| Perk icons, portraits (`assets/game/`) | deadbydaylight.wiki.gg | Property of Behaviour Interactive. Not under this project's license. See `assets/game/NOTICE.md` |
+| Map list (`data/maps.json`) | Derived from Hens' callouts list | |
+| Callout images | [Hens' Callouts](https://hens333.com/callouts), map art by Lethia, with work by Zexov, Broosley and Evo | Not shipped. Downloaded to the user's computer on request. They belong to their creators |
+| League presets | [Balanced by Daylight](https://balancedbydaylight.com) by Kyle Starr and contributors | Not shipped. Fetched on request |
+| Map detection approach | zxorshi/dbd-clock-overlay (MIT), H4RDC0RN/dbd-overlay, erktiky/DBDMap | |
+| Timer features | Modeled on Truueh's DBD 1v1 Timer (feature reference only, no code) | |
+
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `src/main/tools.js` | Tool state and actions. Plain logic, unit tested |
-| `src/main/main.js` | Windows, hotkeys, local server (127.0.0.1 only) |
+| `src/main/tools.js` | All tool state and actions. Plain logic, unit tested |
+| `src/main/main.js` | Windows, tray, local server (127.0.0.1 only), wiring |
+| `src/main/detect.js` | Map catalog matching, lock session, OCR |
+| `src/main/hooks.js` | Global input, both modes |
+| `src/main/leagues.js` | League preset import |
 | `src/ui/` | Main window |
 | `src/overlay/` | Overlay pages, shared by app windows and OBS |
-| `src/main/detect.js` | Map detection: screen capture, OCR, fuzzy match |
-| `data/` | Perk, character and map names. Refresh with `npm run update-data` |
-| `assets/game/` | Perk icons and portraits. Refresh with `npm run update-assets` |
-
-## Data and credits
-
-Perk and character names come from the dbd.tricky.lol community API. Perk icons and portraits come from deadbydaylight.wiki.gg. Dead by Daylight, its names and its art are property of Behaviour Interactive and are not covered by the MIT license. See `assets/game/NOTICE.md`.
+| `scripts/` | `update-data`, `update-assets`, `smoke` |
 
 ## License
 
-MIT. See `LICENSE`.
+MIT for the code. See `LICENSE`. Game art, callout images and league data are excluded as listed above.

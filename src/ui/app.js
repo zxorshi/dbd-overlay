@@ -344,7 +344,7 @@ Object.assign(VIEWS, {
     return ['Statistics', 'Local match log. Stored on this computer only.', `<div class="card"><h2>Add match</h2>
         <div class="grid"><label class="field"><span>Role</span><select id="st-role">${opt('killer', 'Killer', role)}${opt('survivor', 'Survivor', role)}</select></label>
           <label class="field"><span>Character</span><select id="st-char">${opt('', 'Not set', '')}${D.characters.map((c) => opt(c.id, esc(c.name), '')).join('')}</select></label>
-          <label class="field"><span>Map</span><input type="text" id="st-map"></label>
+          <label class="field"><span>Map</span><input type="text" id="st-map" list="dl-maps" value="${esc((D.maps.find((x) => x.id === S.map.current) || {}).name || '')}"><datalist id="dl-maps">${D.maps.map((x) => `<option value="${esc(x.name)}">`).join('')}</datalist></label>
           <label class="field"><span>Result</span><select id="st-result">${opt('win', 'Win', 'win')}${opt('loss', 'Loss', '')}${opt('draw', 'Draw', '')}</select></label>
           <label class="field"><span>Hook stages</span><input type="number" id="st-stages" min="0" max="12" value="0"></label>
           <label class="field"><span>Gens left</span><input type="number" id="st-gens" min="0" max="5" value="0"></label>
@@ -353,6 +353,7 @@ Object.assign(VIEWS, {
         <div class="row"><button class="btn pri" data-form="stats">Add match</button><button class="btn" data-form="export">Copy all as JSON</button></div></div>
       <div class="card"><h2>Record: ${d.total.wins} W, ${d.total.losses} L, ${d.total.draws} D (${d.total.rate}%)</h2>
         ${rows ? `<table><tr><th>Character</th><th>Played</th><th>W</th><th>L</th><th>D</th><th>Win rate</th></tr>${rows}</table>` : '<p class="note">No matches logged.</p>'}</div>
+      ${d.byMap.length ? `<div class="card"><h2>By map</h2><table><tr><th>Map</th><th>Played</th><th>W</th><th>L</th><th>D</th><th>Win rate</th><th>Avg stages</th></tr>${d.byMap.map((r) => `<tr><td>${esc(r.key)}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td>${r.rate}%</td><td>${r.avgStages}</td></tr>`).join('')}</table></div>` : ''}
       ${recent ? `<div class="card"><h2>Recent</h2><table><tr><th>Date</th><th>Character</th><th>Map</th><th>Result</th><th>Stages</th><th>Gens</th><th>Kills</th><th></th></tr>${recent}</table></div>` : ''}`];
   },
   challenge() {

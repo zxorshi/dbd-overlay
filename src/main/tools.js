@@ -367,15 +367,20 @@ function scoreSummary(score) {
   return { sets, history, need, champion, goal, pending: !target && score.games.length % 2 === 1 ? score.games[score.games.length - 1] : null };
 }
 function statsSummary(matches) {
-  const row = () => ({ played: 0, wins: 0, losses: 0, draws: 0 });
-  const total = row(); const by = {};
-  for (const m of matches) {
-    const key = m.character || m.role;
-    for (const r of [total, (by[key] = by[key] || row())]) { r.played += 1; r[m.result === 'win' ? 'wins' : m.result === 'loss' ? 'losses' : 'draws'] += 1; }
-  }
+  const row = () => ({ played: 0, wins: 0, losses: 0, draws: 0, stages: 0 });
   const rate = (r) => (r.played ? Math.round((r.wins / r.played) * 100) : 0);
-  const list = Object.entries(by).map(([key, r]) => ({ key, ...r, rate: rate(r) })).sort((a, b) => b.rate - a.rate || b.played - a.played);
-  return { total: { ...total, rate: rate(total) }, by: list };
+  const add = (r, m) => { r.played += 1; r[m.result === 'win' ? 'wins' : m.result === 'loss' ? 'losses' : 'draws'] += 1; r.stages += Number(m.stages) || 0; };
+  const group = (keyOf) => {
+    const by = {};
+    for (const m of matches) { const k = keyOf(m); if (k) add((by[k] = by[k] || row()), m); }
+    return Object.entries(by).map(([key, r]) => ({ key, ...r, rate: rate(r), avgStages: Math.round((r.stages / r.played) * 10) / 10 }))
+      .sort((a, b) => b.rate - a.rate || b.played - a.played);
+  };
+  const total = row(); matches.forEach((m) => add(total, m));
+  // Current run of identical results, newest first.
+  let run = 0; for (let i = matches.length - 1; i >= 0 && matches[i].result === matches[matches.length - 1].result; i--) run += 1;
+  return { total: { ...total, rate: rate(total) }, by: group((m) => m.character || m.role), byMap: group((m) => (m.map || '').trim()),
+    run: matches.length ? { result: matches[matches.length - 1].result, count: run } : null };
 }
 function derive(state, perks) {
   const names = Object.fromEntries(perks.map((p) => [p.id, p.name]));

@@ -61,6 +61,7 @@ function load() {
     }
   }
   state.map.locked = false; state.map.download = ''; // a lock never outlives the session
+  if (!state.settings.riskAck) { state.map.auto = false; state.settings.inputMode = 'standard'; } // opt-in features stay off until accepted
   for (const o of Object.values(state.overlays)) o.locked = true; // edit mode never survives a restart: overlays start click-through
 }
 function writeNow() {
@@ -151,11 +152,12 @@ function onLines(lines, error, engine) {
 
 // What overlay pages and OBS sources receive: no screen text, no roster, no match log.
 function publicState() {
-  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined, timer: { ...state.timer, log: undefined } });
+  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, update: undefined, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined, timer: { ...state.timer, log: undefined } });
 }
 function broadcast() {
   state.calloutIds = Object.keys(callouts);
   state.gameRunning = gameRunning;
+  state.update = update; state.appVersion = app.getVersion();
   state.derived = derive(state, perks);
   const json = publicState();
   if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('state', state);
@@ -165,10 +167,10 @@ function broadcast() {
 function act(name, payload) {
   const ok = dispatch(state, name, payload, { now: Date.now(), perks, characters, catalog, random: Math.random });
   if (!ok) return;
-  if (name.startsWith('hotkey.') || name === 'settings.set' || name === 'perks.remove') registerHotkeys();
+  if (name.startsWith('hotkey.') || name === 'settings.set' || name === 'perks.remove' || name === 'risk.revoke') registerHotkeys();
   if (name.startsWith('map.')) session.reset();
   if (name === 'map.set' && payload && 'style' in payload) scanCallouts();
-  if (name.startsWith('map.') || name === 'settings.set') syncDetector();
+  if (name.startsWith('map.') || name === 'settings.set' || name === 'risk.revoke') syncDetector();
   syncOverlayWindows();
   broadcast();
   save();
@@ -212,6 +214,29 @@ function centerCrosshair(win) {
   const { bounds } = screen.getPrimaryDisplay();
   const size = 400;
   win.setBounds({ x: Math.round(bounds.x + (bounds.width - size) / 2), y: Math.round(bounds.y + (bounds.height - size) / 2), width: size, height: size });
+}
+
+// ---- updates ---------------------------------------------------------------
+// Installed Windows builds update themselves from the project's GitHub releases (electron-updater).
+// A new version downloads in the background and installs when the app closes, or at once on request.
+let updater = null;
+const update = { status: 'off', version: '', percent: 0, error: '' }; // off | checking | current | downloading | ready | error
+function setUpdate(fields) { Object.assign(update, fields); broadcast(); }
+function startUpdater() {
+  if (!app.isPackaged || process.platform !== 'win32' || process.env.PORTABLE_EXECUTABLE_DIR) return; // portable and dev builds do not self-update
+  try { updater = require('electron-updater').autoUpdater; } catch (err) { log('updater unavailable', err); return; }
+  updater.autoDownload = true; updater.autoInstallOnAppQuit = true; updater.logger = null;
+  updater.on('checking-for-update', () => setUpdate({ status: 'checking', error: '' }));
+  updater.on('update-not-available', () => setUpdate({ status: 'current' }));
+  updater.on('update-available', (i) => { log('update available', i.version); setUpdate({ status: 'downloading', version: i.version, percent: 0 }); });
+  updater.on('download-progress', (p) => { const pct = Math.round(p.percent); if (pct !== update.percent) setUpdate({ percent: pct }); });
+  updater.on('update-downloaded', (i) => { log('update downloaded', i.version); setUpdate({ status: 'ready', version: i.version }); });
+  updater.on('error', (err) => { log('update error', err); setUpdate({ status: 'error', error: String((err && err.message) || err).slice(0, 200) }); });
+  checkForUpdate(); setInterval(checkForUpdate, 4 * 60 * 60 * 1000);
+}
+function checkForUpdate() {
+  if (!updater || !state.settings.autoUpdate || update.status === 'downloading' || update.status === 'ready') return;
+  updater.checkForUpdates().catch((err) => log('update check failed', err));
 }
 
 // ---- hotkeys ---------------------------------------------------------------
@@ -352,7 +377,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('restore', (_e, json) => {
     try {
       const d = JSON.parse(String(json)); if (!d || typeof d !== 'object' || !d.overlays || !d.timer) throw new Error('This is not a DBD Overlay backup');
-      for (const k of ['derived', 'calloutIds', 'gameRunning', 'hotkeysFailed', 'passthroughAvailable']) delete d[k];
+      for (const k of ['derived', 'calloutIds', 'gameRunning', 'hotkeysFailed', 'passthroughAvailable', 'update', 'appVersion']) delete d[k];
       state = merge(defaultState(), d); registerHotkeys(); syncOverlayWindows(); syncDetector(); broadcast(); save(); return {};
     } catch (e) { return { error: String(e.message || e) }; }
   });
@@ -367,6 +392,11 @@ app.whenReady().then(async () => {
     o.y = Math.round(v === 'top' ? wa.y + pad : v === 'bottom' ? wa.y + wa.height - b.height - pad : wa.y + (wa.height - b.height) / 2);
     if (win && !win.isDestroyed()) win.setBounds({ x: o.x, y: o.y, width: b.width, height: b.height });
     save();
+  });
+  ipcMain.on('update', (_e, what) => {
+    if (!updater) return;
+    if (what === 'install' && update.status === 'ready') { quitting = true; writeNow(); updater.quitAndInstall(true, true); }
+    else if (what === 'check') { if (update.status !== 'downloading' && update.status !== 'ready') updater.checkForUpdates().catch((err) => log('update check failed', err)); }
   });
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
@@ -396,6 +426,7 @@ app.whenReady().then(async () => {
   syncOverlayWindows();
   checkGame(); setInterval(checkGame, 5000);
   syncDetector(); log('ready');
+  startUpdater();
 });
 app.on('before-quit', () => { quitting = true; if (stateFile) writeNow(); });
 app.on('will-quit', () => { hooks.shutdown(); if (detector) detector.close(); });

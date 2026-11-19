@@ -61,8 +61,8 @@ function defaultState() {
     stats: { matches: [] },
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
     league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
-    map: { style: 'classic', current: null, locked: false, auto: true, region: 'auto', lastText: '', lastError: '', download: '' },
-    settings: { ocrEngine: 'auto', inputMode: 'standard', closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
+    map: { style: 'classic', current: null, locked: false, auto: false, region: 'auto', lastText: '', lastError: '', download: '' },
+    settings: { riskAck: false, autoUpdate: true, ocrEngine: 'auto', inputMode: 'standard', closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
   };
 }
 
@@ -357,7 +357,7 @@ Object.assign(actions, {
   'league.remove'(s, { id }) { s.league.members = s.league.members.filter((m) => m.id !== id || m.role === 'owner'); },
 
   // ---- map callouts
-  'map.set'(s, f) { Object.assign(s.map, f); },
+  'map.set'(s, f) { if (f.auto && !s.settings.riskAck) f.auto = false; Object.assign(s.map, f); },
   // Picking a map by hand is an explicit choice, so it locks at once.
   'map.pick'(s, { id }) { s.map.current = id || null; s.map.locked = Boolean(id); },
   'map.toggleLock'(s) { if (s.map.current) s.map.locked = !s.map.locked; },
@@ -367,9 +367,12 @@ Object.assign(actions, {
     s.map.current = fam[(fam.indexOf(cur) + 1) % fam.length].id;
   },
   'settings.set'(s, f) {
+    // Screen reading and pass-through input stay off until the risk notice is accepted.
+    if (!s.settings.riskAck && !f.riskAck && f.inputMode === 'passthrough') delete f.inputMode;
     if ('scanSeconds' in f) f.scanSeconds = clamp(Number(f.scanSeconds) || 2, 1, 10);
     Object.assign(s.settings, f);
   },
+  'risk.revoke'(s) { s.settings.riskAck = false; s.settings.inputMode = 'standard'; s.map.auto = false; s.map.locked = false; },
   'overlays.toggleAll'(s) { s.settings.overlaysHidden = !s.settings.overlaysHidden; },
 
   // ---- challenges

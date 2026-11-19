@@ -1,6 +1,6 @@
 {
   "name": "dbd-overlay",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Free, open source overlay toolkit for Dead by Daylight. Not affiliated with Behaviour Interactive.",
   "main": "src/main/main.js",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "update-data": "node scripts/update-data.mjs",
     "update-assets": "node scripts/update-assets.mjs",
     "test": "node --test",
-    "dist": "npx electron-builder@25 --win portable"
+    "dist": "npx electron-builder@25 --win nsis --x64 --publish never"
   },
   "build": {
     "appId": "dev.dbdoverlay.app",
@@ -20,14 +20,23 @@
       "assets/**"
     ],
     "win": {
-      "target": "portable",
-      "icon": "assets/icon.png",
-      "signAndEditExecutable": false
+      "target": "nsis",
+      "icon": "assets/icon.png"
     },
     "npmRebuild": false,
     "asar": false,
-    "portable": {
-      "artifactName": "DBD-Overlay.exe"
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "DBD-Overlay-Setup.exe",
+      "shortcutName": "DBD Overlay",
+      "runAfterFinish": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "zxorshi",
+      "repo": "dbd-overlay",
+      "releaseType": "release"
     }
   },
   "devDependencies": {
@@ -35,6 +44,7 @@
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
+    "electron-updater": "^6.8.11",
     "tesseract.js": "^5.1.1",
     "uiohook-napi": "^1.5.5"
   }

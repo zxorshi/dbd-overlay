@@ -198,13 +198,17 @@ const VIEWS = {
     return ['Settings', 'Global hotkeys and overlay options.', `<div class="card"><h2>Bindings</h2><div class="keys">${rows}</div>
       <p class="note">Click a binding, then press a key, a mouse button (middle or side) or a controller button. Esc cancels. Controller buttons work while at least one overlay is shown on screen.</p></div>
       <div class="card"><h2>Input mode</h2>
-        <div class="row"><select style="width:auto" aria-label="Input mode" ${B('settings.set', 'inputMode')}>${opt('standard', 'Standard: the key is taken by this app', S.settings.inputMode)}${S.passthroughAvailable ? opt('passthrough', 'Pass-through: the key also reaches the game', S.settings.inputMode) : ''}</select></div>
-        <p class="note">Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons and a lone Ctrl, Shift or Alt. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>
+        <div class="row"><select style="width:auto" aria-label="Input mode" ${B('settings.set', 'inputMode')}>${opt('standard', 'Standard: the key is taken by this app', S.settings.inputMode)}${S.passthroughAvailable && S.settings.riskAck ? opt('passthrough', 'Pass-through: the key also reaches the game', S.settings.inputMode) : ''}</select></div>
+        <p class="note">${S.settings.riskAck ? '' : 'Pass-through is locked until you accept the risk notice on the Overlays page. '}Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons and a lone Ctrl, Shift or Alt. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>
       <div class="card"><h2>Overlays</h2>
         <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
         <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
         <label><input type="checkbox" ${S.settings.closeToTray ? 'checked' : ''} ${B('settings.set', 'closeToTray')}> Closing the window keeps the app running in the tray</label>
         <label><input type="checkbox" ${S.settings.overlaysHidden ? 'checked' : ''} ${B('settings.set', 'overlaysHidden')}> Hide all overlays ${key('overlays.toggleAll')}</label></div>
+      <div class="card"><h2>Updates</h2>
+        <label><input type="checkbox" ${S.settings.autoUpdate ? 'checked' : ''} ${B('settings.set', 'autoUpdate')}> Download and install new versions automatically</label>
+        <div class="row"><span class="note">Version ${esc(S.appVersion || '')}. ${updateLine()}</span>${(S.update || {}).status === 'ready' ? '<button class="btn pri" data-form="updateNow">Restart and install</button>' : (S.update || {}).status !== 'off' ? '<button class="btn" data-form="updateCheck">Check now</button>' : ''}</div>
+        <p class="note">Updates come from the project's GitHub releases page.</p></div>
       <div class="card"><h2>Backup</h2>
         <p class="note">Builds, rulesets, stats, streaks, layouts and hotkeys. Use it to move to another computer or share a setup.</p>
         <div class="row"><button class="btn" data-form="backup">Copy backup to clipboard</button></div>
@@ -325,7 +329,12 @@ const issuesHtml = (list, rs) => (!rs ? '<span class="note">No ruleset selected<
 const val = (id) => ($('#' + id) ? $('#' + id).value : '');
 const LEAGUES = { list: null, msg: '', bad: false };
 let backupMsg = '';
+const updateLine = () => { const u = S.update || { status: 'off' };
+  return ({ off: 'Automatic updates work in the installed Windows version.', checking: 'Checking for updates.', current: 'Up to date.',
+    downloading: `Downloading version ${esc(u.version)}: ${u.percent}%`, ready: `Version ${esc(u.version)} is ready. It installs when the app closes.`, error: 'Update check failed: ' + esc(u.error) })[u.status] || ''; };
 const FORMS = {
+  updateNow() { api.update('install'); },
+  updateCheck() { api.update('check'); },
   profile() { api.act('crosshair.saveProfile', { name: val('ch-name') }); $('#ch-name').value = ''; },
   backup() { const { derived, calloutIds, gameRunning, hotkeysFailed, passthroughAvailable, ...rest } = S; api.copy(JSON.stringify(rest)); backupMsg = 'Copied to clipboard. Paste it into a text file to keep it.'; panel(true); },
   async restore() { const r = await api.restore(val('bk-json')); backupMsg = r.error ? 'Restore failed: ' + r.error : 'Restored.'; panel(true); },
@@ -484,7 +493,8 @@ VIEWS.map = () => {
         ${fam.length > 1 ? `<button class="btn" ${A('map.nextVariant')}>Next variant (${fam.indexOf(cur) + 1} of ${fam.length}) ${key('map.nextVariant')}</button>` : ''}
         ${cur ? `<button class="btn" ${A('map.toggleLock')}>${m.locked ? 'Unlock' : 'Lock'} ${key('map.toggleLock')}</button>` : ''}</div></div>
     <div class="card"><h2>Detection</h2>
-      <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${B('map.set', 'auto')}> Detect the map from the screen</label>
+      ${S.settings.riskAck ? '' : '<p class="bad">Off. Screen reading is locked until you accept the risk notice on the Overlays page.</p>'}
+      <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${S.settings.riskAck ? '' : 'disabled'} ${B('map.set', 'auto')}> Detect the map from the screen</label>
         <label><input type="checkbox" ${S.settings.onlyWhenGameRuns ? 'checked' : ''} ${B('settings.set', 'onlyWhenGameRuns')}> Only while the game is running</label></div>
       <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('auto', 'Automatic (map name area, then end screen)', m.region)}${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
         <label class="row">Every <input type="number" min="1" max="10" value="${S.settings.scanSeconds}" ${B('settings.set', 'scanSeconds')}> s</label>
@@ -533,7 +543,13 @@ VIEWS.home = () => {
         <button class="btn" ${A('overlays.toggleLock')}>Edit / lock all ${key('overlays.toggleLock')}</button></div>
       <p class="note">The game must run in borderless or windowed mode for overlays to show on top of it.</p></div>
     <div class="card"><h2>All overlays</h2><table><tr><th>Tool</th><th>On screen</th><th>Layout</th><th>Color</th><th>Size</th></tr>${rows}</table></div>
-    <div class="card"><h2>About</h2><p class="note">Free and open source (MIT). Not affiliated with Behaviour Interactive. This app reads the screen and never reads game memory or sends input to the game. Behaviour has not published a position on overlay tools: use at your own risk.</p></div>`];
+    ${(S.update || {}).status === 'ready' ? `<div class="card sel"><h2>Update</h2><div class="row"><span class="good">Version ${esc(S.update.version)} is ready.</span><button class="btn pri" data-form="updateNow">Restart and install</button><span class="note">Otherwise it installs when the app closes.</span></div></div>` : ''}
+<div class="card ${S.settings.riskAck ? '' : 'sel'}"><h2>Account risk</h2>
+      <p class="note">Behaviour has not approved any overlay tool, and no overlay can promise that an anti-cheat will ignore it. This app never reads game memory and never sends input to the game. Two optional features go further than drawing a window and are off unless you turn them on here:</p>
+      <ul class="note"><li><strong>Map detection</strong> takes screenshots of your screen to read the map name.</li><li><strong>Pass-through hotkeys</strong> install a system-wide keyboard and mouse hook.</li></ul>
+      <div class="row">${S.settings.riskAck ? `<span class="note">These options are unlocked.</span><button class="btn" ${A('risk.revoke')}>Turn both off and lock them</button>` : `<button class="btn" ${A('settings.set', { riskAck: true })}>I understand the risk: unlock these options</button>`}</div>
+      <p class="note">Lowest-risk use: add the overlays to OBS as browser sources, or show them on a second monitor, instead of over the game.</p></div>
+    <div class="card"><h2>About</h2><p class="note">Version ${esc(S.appVersion || '')}. ${updateLine()}</p><p class="note">Free and open source (MIT). Not affiliated with Behaviour Interactive. This app reads the screen and never reads game memory or sends input to the game. Behaviour has not published a position on overlay tools: use at your own risk.</p></div>`];
 };
 
 let killerSort = 'name';

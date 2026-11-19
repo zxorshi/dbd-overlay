@@ -176,3 +176,13 @@ test('map match: real OCR output from game frames', () => {
   assert.equal(m(['CAMPOS PODRIDOS |']), undefined);
   assert.equal(m(['i ’ Ing W [ =', 'AK']), undefined);
 });
+
+test('risk notice gates screen reading and pass-through input', () => {
+  const s = defaultState();
+  dispatch(s, 'map.set', { auto: true }, ctx(0)); dispatch(s, 'settings.set', { inputMode: 'passthrough' }, ctx(0));
+  assert.deepEqual([s.map.auto, s.settings.inputMode], [false, 'standard']);
+  dispatch(s, 'settings.set', { riskAck: true }, ctx(0)); dispatch(s, 'map.set', { auto: true }, ctx(0)); dispatch(s, 'settings.set', { inputMode: 'passthrough' }, ctx(0));
+  assert.deepEqual([s.map.auto, s.settings.inputMode], [true, 'passthrough']);
+  dispatch(s, 'risk.revoke', {}, ctx(0));
+  assert.deepEqual([s.map.auto, s.settings.inputMode, s.settings.riskAck], [false, 'standard', false]);
+});

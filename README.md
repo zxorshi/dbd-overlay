@@ -47,6 +47,14 @@ Measured with `scripts/ocr-eval.js` on 26 real game screenshots (Steam community
 
 Not measured: live capture on Windows, and the Windows built-in reader.
 
+## Install
+
+Download `DBD-Overlay-Setup.exe` from the [latest release](https://github.com/zxorshi/dbd-overlay/releases/latest) and run it. Installed copies update themselves from the releases page.
+
+## Account risk
+
+Behaviour has not approved overlay tools. Map detection (screenshots of your screen) and pass-through hotkeys (a system-wide input hook) are off until you accept a risk notice in the app. Lowest-risk use: overlays as OBS browser sources or on a second monitor.
+
 ## Run from source
 
 ```bash

@@ -1,5 +1,6 @@
-name: Build Windows exe
-# A release is built when the RELEASE file changes on main (it holds the version to publish), or by hand.
+name: Build and release
+# Builds the Windows installer and publishes it as a GitHub release when the RELEASE file changes on main.
+# Installed copies of the app update themselves from these releases.
 on:
   push:
     branches: [main]
@@ -17,16 +18,15 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
-      - run: npx electron-builder@25 --win portable --x64 --publish never
-      - uses: actions/upload-artifact@v4
-        with:
-          name: DBD-Overlay
-          path: dist/DBD-Overlay.exe
-      - name: Publish release
+      - name: Set version from RELEASE
+        shell: bash
+        run: npm version "$(tr -d '[:space:]' < RELEASE)" --no-git-tag-version --allow-same-version
+      - name: Build and publish
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG="v$(tr -d '[:space:]' < RELEASE)"
-          gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" dist/DBD-Overlay.exe --target "$GITHUB_SHA" --prerelease --title "$TAG test build" --notes "Windows 10/11, 64-bit. Single portable exe: download and run, no install. Unsigned: Windows may show a SmartScreen prompt (More info, Run anyway). Callout images are not included; in the app use Map Callouts, Download from hens333.com. Not affiliated with Behaviour Interactive. Use at your own risk."
+        run: npx electron-builder@25 --win nsis --x64 --publish always
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DBD-Overlay-Setup
+          path: dist/DBD-Overlay-Setup.exe

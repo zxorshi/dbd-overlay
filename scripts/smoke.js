@@ -11,7 +11,7 @@ const out = process.argv[2] || 'smoke-out'; const root = path.join(__dirname, '.
   const win = await app.firstWindow();
   win.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); win.on('pageerror', (e) => errs.push(String(e)));
   await win.setViewportSize({ width: 1280, height: 900 }); await win.waitForSelector('h1');
-  await win.click('[data-tool="map"]'); await win.uncheck('[data-field="auto"]'); // screen capture is not available in test displays
+
   const tools = await win.$$eval('[data-tool]:not([disabled])', (n) => n.map((x) => x.dataset.tool));
   const sizes = {};
   for (const t of tools) {

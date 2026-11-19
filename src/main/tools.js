@@ -30,6 +30,7 @@ function defaultState() {
       history: [],
       bestOf: 3,
       startOnSelect: false,
+      killer: null, map: '', log: [],
       warnSeconds: 20, // the second run changes color this many seconds before it reaches the first run's time
       penaltyMs: 5000,
     },
@@ -125,6 +126,8 @@ const actions = {
     if (a === b) return;
     const winner = a > b ? 0 : 1;
     t.rounds[winner] += 1; t.history = [...(t.history || []), { a, b, winner }].slice(-20);
+    // Long-term log for personal bests, tagged with the killer and map set in the timer panel.
+    t.log = [...(t.log || []), { ts: now, killer: t.killer || null, map: t.map || '', a, b, winner }].slice(-2000);
     t.slots.forEach((x) => { x.base = 0; x.startedAt = null; }); t.active = 0;
   },
   'timer.newMatch'(s) { const t = s.timer; t.rounds = [0, 0]; t.history = []; t.slots.forEach((x) => { x.base = 0; x.startedAt = null; }); t.active = 0; },
@@ -382,6 +385,15 @@ function statsSummary(matches) {
   return { total: { ...total, rate: rate(total) }, by: group((m) => m.character || m.role), byMap: group((m) => (m.map || '').trim()),
     run: matches.length ? { result: matches[matches.length - 1].result, count: run } : null };
 }
+// Per killer: rounds played, rounds won by player 1, player 1's longest run and shortest time conceded.
+function chaseSummary(log) {
+  const by = {};
+  for (const r of log || []) {
+    const k = r.killer || 'any'; const x = (by[k] = by[k] || { key: k, rounds: 0, won: 0, best: 0, avg: 0 });
+    x.rounds += 1; if (r.winner === 0) x.won += 1; x.best = Math.max(x.best, r.a); x.avg += r.a;
+  }
+  return Object.values(by).map((x) => ({ ...x, avg: Math.round(x.avg / x.rounds) })).sort((a, b) => b.rounds - a.rounds);
+}
 function derive(state, perks) {
   const names = Object.fromEntries(perks.map((p) => [p.id, p.name]));
   const rs = state.rulesets.list.find((r) => r.id === state.builds.rulesetId) || null;
@@ -392,6 +404,7 @@ function derive(state, perks) {
     ruleset: rs ? rs.name : null,
     score: scoreSummary(state.score),
     stats: statsSummary(state.stats.matches),
+    chase: chaseSummary(state.timer.log),
   };
 }
 

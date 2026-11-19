@@ -93,10 +93,14 @@ const VIEWS = {
       ${(t.history || []).length ? `<table><tr><th>Round</th><th>${esc(t.labels[0])}</th><th>${esc(t.labels[1])}</th><th>Winner</th></tr>${t.history.map((h, i) => `<tr><td>${i + 1}</td><td>${fmt(h.a)}</td><td>${fmt(h.b)}</td><td>${esc(t.labels[h.winner])}</td></tr>`).join('')}</table>` : ''}
       <div class="row"><label for="tl">Layout</label><select id="tl" style="width:auto" ${B('timer.set', 'layout')}>
         ${opt('dual', 'Dual with rounds', t.layout)}${opt('single', 'Single (active player)', t.layout)}${opt('compact', 'Compact', t.layout)}</select></div>
+      <div class="row"><label class="row">Killer <select style="width:auto" ${B('timer.set', 'killer')}>${opt('', 'Not set', t.killer || '')}${D.characters.filter((c) => c.role === 'killer').map((c) => opt(c.id, esc(c.name), t.killer)).join('')}</select></label>
+        <label class="row">Map <input type="text" style="width:170px" list="dl-maps1" value="${esc(t.map || '')}" ${B('timer.set', 'map')}><datalist id="dl-maps1">${D.maps.map((x) => `<option value="${esc(x.name)}">`).join('')}</datalist></label>
+        <span class="note">Scored rounds are logged under this killer and map.</span></div>
       <div class="row"><label class="row">Warning color <input type="number" min="0" max="120" value="${t.warnSeconds}" ${B('timer.set', 'warnSeconds')}> s before the time to beat</label>
         <label class="row">Penalty <input type="number" min="1" max="60" value="${(t.penaltyMs || 5000) / 1000}" data-penalty> s</label>
         <label><input type="checkbox" ${t.startOnSelect ? 'checked' : ''} ${B('timer.set', 'startOnSelect')}> Selecting a player starts their timer</label></div>
-      <p class="note">Penalty deducts out-of-sight time from the active run. More timer keys (one-key start/stop/reset, select player) are in Settings.</p></div>`];
+      <p class="note">Penalty deducts out-of-sight time from the active run. More timer keys (one-key start/stop/reset, select player) are in Settings.</p></div>
+      ${S.derived.chase.length ? `<div class="card"><h2>${esc(t.labels[0])}: chase record</h2><table><tr><th>Killer</th><th>Rounds</th><th>Won</th><th>Longest run</th><th>Average run</th></tr>${S.derived.chase.map((r) => `<tr><td><span class="row">${art('portraits', r.key, 'portrait sm')}${esc((D.characters.find((c) => c.id === r.key) || {}).name || 'Not set')}</span></td><td>${r.rounds}</td><td>${r.won}</td><td>${fmt(r.best)}</td><td>${fmt(r.avg)}</td></tr>`).join('')}</table></div>` : ''}`];
   },
   crosshair() {
     const c = S.crosshair;

@@ -1,6 +1,7 @@
 // Main process: state store, overlay windows, global hotkeys, local server for overlays and OBS.
 const { app, BrowserWindow, ipcMain, screen, clipboard, desktopCapturer, shell, Tray, Menu, nativeImage, dialog } = require('electron');
 const { execFile } = require('node:child_process');
+const os = require('node:os');
 const leagues = require('./leagues');
 const hooks = require('./hooks');
 const calloutSite = require('./callouts');
@@ -110,7 +111,8 @@ async function downloadCallouts() {
 
 async function grabScreen(region, opts) {
   const { size } = screen.getPrimaryDisplay();
-  const width = Math.min(1920, size.width); const height = Math.round((width * size.height) / size.width);
+  // 1600 wide at most: on real frames this read as well as 1920 and costs a third less to capture and process.
+  const width = Math.min(1600, size.width); const height = Math.round((width * size.height) / size.width);
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
   const primary = String(screen.getPrimaryDisplay().id);
   const src = sources.find((x) => x.display_id === primary) || sources[0];
@@ -122,13 +124,16 @@ async function grabScreen(region, opts) {
 let gameRunning = process.platform !== 'win32';
 function checkGame() {
   if (process.platform !== 'win32') return;
-  execFile('tasklist', ['/FO', 'CSV', '/NH'], { windowsHide: true, maxBuffer: 4 << 20 }, (err, out) => {
+  // Filtered to the game's image name so Windows returns one line, not the whole process list.
+  execFile('tasklist', ['/FI', 'IMAGENAME eq DeadByDaylight*', '/FO', 'CSV', '/NH'], { windowsHide: true, maxBuffer: 1 << 20 }, (err, out) => {
     if (err) return; // a failed process listing says nothing about the game
     const running = /"deadbydaylight[^"]*shipping[^"]*\.exe"/i.test(out);
     if (running === gameRunning) return;
     gameRunning = running;
     if (!running && state.map.locked) { state.map.locked = false; session.reset(); }
+    log('game running', running);
     syncDetector(); broadcast();
+    if (!running) resumeUpdate();
   });
 }
 function syncDetector() {
@@ -142,17 +147,20 @@ let scansLogged = 0;
 function onLines(lines, error, engine) {
   if (scansLogged < 5) { scansLogged += 1; log('ocr read', engine, JSON.stringify(lines.join(' | ').slice(0, 160))); } // first reads only, for bug reports
   if (error && error !== state.map.lastError) log('ocr error', engine, error);
-  state.map.engine = engine || '';
-  state.map.lastText = lines.join(' | ').slice(0, 300); state.map.lastError = error || '';
+  const text = lines.join(' | ').slice(0, 300);
   const ev = session.onLines(lines, { id: state.map.current, locked: state.map.locked }, Date.now());
-  if (ev && ev.lock) { state.map.current = ev.lock; state.map.locked = true; }
-  if (ev && ev.unlock) state.map.locked = false;
-  broadcast(); if (ev) save();
+  const changed = ev || text !== state.map.lastText || (error || '') !== state.map.lastError || (engine || '') !== state.map.engine;
+  state.map.engine = engine || ''; state.map.lastText = text; state.map.lastError = error || '';
+  if (ev && ev.lock) { state.map.current = ev.lock; state.map.locked = true; log('map locked', ev.lock); }
+  if (!changed) return;
+  // The read text only matters to the Map Callouts page: skip the broadcast while the window is not in view.
+  if (ev || (mainWin && !mainWin.isDestroyed() && mainWin.isVisible() && !mainWin.isMinimized())) broadcast();
+  if (ev) save();
 }
 
 // What overlay pages and OBS sources receive: no screen text, no roster, no match log.
 function publicState() {
-  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, update: undefined, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined, timer: { ...state.timer, log: undefined } });
+  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, update: undefined, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined, padInUse: Object.values(state.hotkeys).some((k) => /^Pad\d+$/.test(k || '')), timer: { ...state.timer, log: undefined } });
 }
 function broadcast() {
   state.calloutIds = Object.keys(callouts);
@@ -216,6 +224,15 @@ function centerCrosshair(win) {
   win.setBounds({ x: Math.round(bounds.x + (bounds.width - size) / 2), y: Math.round(bounds.y + (bounds.height - size) / 2), width: size, height: size });
 }
 
+// ---- staying out of the game's way ------------------------------------------
+// Every process of this app (window, overlays, graphics, text reader) runs below normal priority,
+// so Windows gives the game the processor first whenever both want it.
+function lowerPriority() {
+  try {
+    for (const m of app.getAppMetrics()) { try { os.setPriority(m.pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* process ended */ } }
+  } catch { /* metrics unavailable */ }
+}
+
 // ---- updates ---------------------------------------------------------------
 // Installed Windows builds update themselves from the project's GitHub releases (electron-updater).
 // A new version downloads in the background and installs when the app closes, or at once on request.
@@ -225,17 +242,23 @@ function setUpdate(fields) { Object.assign(update, fields); broadcast(); }
 function startUpdater() {
   if (!app.isPackaged || process.platform !== 'win32' || process.env.PORTABLE_EXECUTABLE_DIR) return; // portable and dev builds do not self-update
   try { updater = require('electron-updater').autoUpdater; } catch (err) { log('updater unavailable', err); return; }
-  updater.autoDownload = true; updater.autoInstallOnAppQuit = true; updater.logger = null;
+  // Never download during a game: a 100 MB download in the background costs bandwidth and ping.
+  updater.autoDownload = false; updater.autoInstallOnAppQuit = true; updater.logger = null;
   updater.on('checking-for-update', () => setUpdate({ status: 'checking', error: '' }));
   updater.on('update-not-available', () => setUpdate({ status: 'current' }));
-  updater.on('update-available', (i) => { log('update available', i.version); setUpdate({ status: 'downloading', version: i.version, percent: 0 }); });
+  updater.on('update-available', (i) => { log('update available', i.version); setUpdate({ status: 'waiting', version: i.version, percent: 0 }); resumeUpdate(); });
   updater.on('download-progress', (p) => { const pct = Math.round(p.percent); if (pct !== update.percent) setUpdate({ percent: pct }); });
   updater.on('update-downloaded', (i) => { log('update downloaded', i.version); setUpdate({ status: 'ready', version: i.version }); });
   updater.on('error', (err) => { log('update error', err); setUpdate({ status: 'error', error: String((err && err.message) || err).slice(0, 200) }); });
   checkForUpdate(); setInterval(checkForUpdate, 4 * 60 * 60 * 1000);
 }
+function resumeUpdate() {
+  if (!updater || update.status !== 'waiting' || (gameRunning && process.platform === 'win32')) return;
+  setUpdate({ status: 'downloading' });
+  updater.downloadUpdate().catch((err) => log('update download failed', err));
+}
 function checkForUpdate() {
-  if (!updater || !state.settings.autoUpdate || update.status === 'downloading' || update.status === 'ready') return;
+  if (!updater || !state.settings.autoUpdate || update.status === 'downloading' || update.status === 'ready' || update.status === 'waiting') return;
   updater.checkForUpdates().catch((err) => log('update check failed', err));
 }
 
@@ -363,7 +386,7 @@ app.whenReady().then(async () => {
   fs.mkdirSync(calloutDir, { recursive: true });
   scanCallouts();
   detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines, winOcr: createWinOcr(app.getPath('temp')), engineChoice: () => state.settings.ocrEngine,
-    isLocked: () => state.map.locked, findsMap: (lines) => Boolean(matchMap(lines, catalog)) });
+    findsMap: (lines) => Boolean(matchMap(lines, catalog)) });
   log('callouts', Object.keys(callouts).length);
   try { await serve(); log('server on', port); } catch (err) { log('server failed', err); dialog.showErrorBox('DBD Overlay', 'Could not start the local overlay server: ' + err.message); app.quit(); return; }
   ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), platform: process.platform, presets: CHALLENGE_PRESETS, timerPresets: TIMER_PRESETS, maps, calloutDir, perks, characters, art, port, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
@@ -424,7 +447,8 @@ app.whenReady().then(async () => {
   } catch { /* no tray on this desktop */ }
   registerHotkeys(); log('hotkeys', state.settings.inputMode, 'failed=' + (state.hotkeysFailed || []).join(','));
   syncOverlayWindows();
-  checkGame(); setInterval(checkGame, 5000);
+  checkGame(); setInterval(checkGame, 10000);
+  lowerPriority(); setInterval(lowerPriority, 60000);
   syncDetector(); log('ready');
   startUpdater();
 });

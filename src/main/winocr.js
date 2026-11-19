@@ -16,6 +16,7 @@ function createWinOcr(tmpDir) {
       const fail = (why) => { dead = true; if (waiting) { waiting.reject(new Error(why)); waiting = null; } reject(new Error(why)); };
       try { proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }); }
       catch (err) { return fail(err.message); }
+      try { require('node:os').setPriority(proc.pid, require('node:os').constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* best effort */ }
       const timer = setTimeout(() => fail('Windows OCR did not start'), 20000);
       proc.on('error', (err) => { clearTimeout(timer); fail(err.message); });
       proc.on('exit', () => { clearTimeout(timer); fail('Windows OCR stopped'); });

@@ -33,19 +33,17 @@ Not built: party, live league tracking, friends, stat comparison. They need a se
 
 Developed and tested on Linux. On Windows, beside the game, these are untested: overlays over the game, hotkeys while the game is focused, map detection on real game frames, pass-through input. Checklist: `docs/WINDOWS-TEST.md`.
 
-## Map detection accuracy
+## Map detection accuracy and cost
 
-Measured with `scripts/ocr-eval.js` on 26 real game screenshots (Steam community and wiki images, 1080p to 4K), bundled reader (Tesseract):
+Measured with `scripts/ocr-eval.js` on 26 real game screenshots (1080p to 4K), bundled reader (Tesseract), capture width 1600:
 
 | Set | Result |
 |---|---|
-| English trial-start frames with readable text | 13 of 13 correct, 0.1 to 0.6 s each |
-| English end-of-match screens | 7 of 7 recognized |
-| Frames with no map name (end screens, TAB screen) | 0 false map detections |
+| English trial-start frames with readable text | 13 of 13 correct, about 0.1 s each (two took 0.3 to 0.7 s) |
+| Frames with no white text in the map-name strip (end screens) | Skipped in about 1 ms, no text reader run |
 | Non-English clients (Russian, Spanish, German) | Not detected. English game language is required |
-| Maps added to the game after the catalog was last updated | Not detected until added to `data/maps.json` |
 
-Not measured: live capture on Windows, and the Windows built-in reader.
+The detector reads only the strip where the map name is printed, and only when that strip contains near-white pixels. All app processes run at below-normal priority. Not measured: live capture cost on Windows, and the Windows built-in reader.
 
 ## Install
 

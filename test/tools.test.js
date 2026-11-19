@@ -114,16 +114,16 @@ test('map match: exact, variants, strict alias, OCR typo', () => {
   assert.equal(matchMap(['Azarovs Restinq Place'], catalog).name, "Azarov's Resting Place");
   assert.equal(matchMap(['Repair generators', 'Escape the trial'], catalog), null);
 });
-test('map session: locks after two reads, unlocks at scoreboard, cooldown blocks re-lock', () => {
+test('map session: exact name locks at once, fuzzy needs two reads, next map replaces it after the hold', () => {
   const s = createSession(catalog); const cur = { id: null, locked: false };
-  assert.equal(s.onLines(['Blood Lodge'], cur, 0), null);
-  const ev = s.onLines(['Blood Lodge'], cur, 2000);
-  assert.ok(ev.lock); cur.id = ev.lock; cur.locked = true;
-  assert.deepEqual(s.onLines(['MATCH DID YOU HAVE FUN? |', 'SCOREBOARD 00000 |B]', 'Blood Lodge'], cur, 60000), { unlock: true }); cur.locked = false;
-  assert.equal(s.onLines(['Blood Lodge'], cur, 62000), null);
-  assert.equal(s.onLines(['Blood Lodge'], cur, 64000), null);
-  s.onLines(['Gas Heaven'], cur, 90000);
-  assert.ok(s.onLines(['Gas Heaven'], cur, 92000).lock);
+  assert.equal(s.onLines(['BADHAM PRESCHOUL] +'], cur, 0), null);          // fuzzy: first read does not lock
+  assert.ok(s.onLines(['BADHAM PRESCHOUL] +'], cur, 2000).lock);           // second read does
+  const s2 = createSession(catalog); const c2 = { id: null, locked: false };
+  const ev = s2.onLines(['BLOOD LODGE'], c2, 0); assert.ok(ev.lock);        // exact: locks at once
+  c2.id = ev.lock; c2.locked = true;
+  assert.equal(s2.onLines(['BLOOD LODGE'], c2, 2000), null);                // same map: nothing to do
+  assert.equal(s2.onLines(['GAS HEAVEN'], c2, 30000), null);                // inside the hold: ignored
+  const next = s2.onLines(['GAS HEAVEN'], c2, 400000); assert.ok(next.lock && next.lock !== c2.id);
 });
 
 test('timer: score round goes to the longer run', () => {

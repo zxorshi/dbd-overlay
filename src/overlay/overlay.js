@@ -135,7 +135,9 @@ handle.addEventListener('pointerup', endDrag); handle.addEventListener('pointerc
 
 fetch('/data').then((r) => r.json()).then((d) => { data = d; draw(); });
 new EventSource('/events').onmessage = (e) => { state = JSON.parse(e.data); draw(); };
-setInterval(draw, 100);
+// Redraw on a timer only while this overlay shows a running clock; otherwise state changes trigger draws.
+const ticking = () => state && ((id === 'timer' && state.timer.slots.some((x) => x.startedAt)) || (id === 'perks' && state.perks.list.some((p) => p.endsAt && Date.now() - p.endsAt < 3000)));
+setInterval(() => { if (ticking()) draw(); }, 100);
 
 // ---- phase 3 overlays
 const perkStrip = (ids, cls) => `<div class="perkrow tight">${ids.map((p) => icon('perks', p, cls) || `<div class="${cls} empty"></div>`).join('')}</div>`;
@@ -200,9 +202,10 @@ if (isWindow) {
       if (!pad) continue;
       pad.buttons.forEach((b, i) => {
         const k = pad.index + ':' + i;
+        if (!state || !state.padInUse) return; // no controller button is bound: nothing to report
         if (b.pressed && !held.has(k)) { held.add(k); fetch('/pad/' + i, { method: 'POST' }).catch(() => {}); }
         else if (!b.pressed) held.delete(k);
       });
     }
-  }, 16);
+  }, 33);
 }

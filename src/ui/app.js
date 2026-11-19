@@ -331,7 +331,7 @@ const LEAGUES = { list: null, msg: '', bad: false };
 let backupMsg = '';
 const updateLine = () => { const u = S.update || { status: 'off' };
   return ({ off: 'Automatic updates work in the installed Windows version.', checking: 'Checking for updates.', current: 'Up to date.',
-    downloading: `Downloading version ${esc(u.version)}: ${u.percent}%`, ready: `Version ${esc(u.version)} is ready. It installs when the app closes.`, error: 'Update check failed: ' + esc(u.error) })[u.status] || ''; };
+    waiting: `Version ${esc(u.version)} found. It downloads once the game is closed.`, downloading: `Downloading version ${esc(u.version)}: ${u.percent}%`, ready: `Version ${esc(u.version)} is ready. It installs when the app closes.`, error: 'Update check failed: ' + esc(u.error) })[u.status] || ''; };
 const FORMS = {
   updateNow() { api.update('install'); },
   updateCheck() { api.update('check'); },
@@ -485,7 +485,7 @@ VIEWS.map = () => {
   const opts = opt('', 'No map', m.current || '') + realms.map((r) => `<optgroup label="${esc(r)}">${D.maps.filter((x) => x.realm === r).map((x) => opt(x.id, esc(x.name) + (has(x.id) ? '' : ' (no image)'), m.current)).join('')}</optgroup>`).join('');
   const missing = D.maps.filter((x) => x.image !== false && !has(x.id)).length;
   const status = !m.auto ? 'Detection is off. Pick a map below.'
-    : m.locked && cur ? `Locked on ${esc(cur.name)}. Unlocks at the end-of-match screen.`
+    : m.locked && cur ? `Locked on ${esc(cur.name)}. Changes when the next trial's map name is read.`
       : S.gameRunning ? 'Waiting for the next map name on screen.' : 'Waiting for Dead by Daylight to start.';
   return ['Map Callouts', 'Clock callouts for the current map: 12 at the top, numbers run clockwise. M = main building, S = shack.', `<div class="card"><h2>Current map</h2>
       <p class="${m.locked ? 'good' : 'note'}">${status}</p>
@@ -496,12 +496,12 @@ VIEWS.map = () => {
       ${S.settings.riskAck ? '' : '<p class="bad">Off. Screen reading is locked until you accept the risk notice on the Overlays page.</p>'}
       <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${S.settings.riskAck ? '' : 'disabled'} ${B('map.set', 'auto')}> Detect the map from the screen</label>
         <label><input type="checkbox" ${S.settings.onlyWhenGameRuns ? 'checked' : ''} ${B('settings.set', 'onlyWhenGameRuns')}> Only while the game is running</label></div>
-      <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('auto', 'Automatic (map name area, then end screen)', m.region)}${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
+      <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('auto', 'Map name strip (light, recommended)', m.region)}${opt('full', 'Whole screen (heavy)', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
         <label class="row">Every <input type="number" min="1" max="10" value="${S.settings.scanSeconds}" ${B('settings.set', 'scanSeconds')}> s</label>
         ${D.platform === 'win32' ? `<label class="row">Reader <select style="width:auto" ${B('settings.set', 'ocrEngine')}>${opt('auto', 'Windows OCR, then Tesseract', S.settings.ocrEngine)}${opt('tesseract', 'Tesseract only', S.settings.ocrEngine)}</select></label>` : ''}
         <button class="btn" data-form="detect">Read screen now</button></div>
       ${m.lastError ? `<p class="bad">${esc(m.lastError)}</p>` : ''}
-      <p class="note">Reads the map name shown when a trial loads. The game must run in borderless or windowed mode. The same map must be read twice in a row before it locks. ${m.engine ? 'Reader in use: ' + esc(m.engine) + '. ' : ''}Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
+      <p class="note">Reads only the small strip at the bottom left where the map name appears when a trial starts, and only when that strip contains white text. The game must run in borderless or windowed mode. ${m.engine ? 'Reader in use: ' + esc(m.engine) + '. ' : ''}Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
     <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length}</h2>
       <div class="row"><label class="row">Style <select style="width:auto" ${B('map.set', 'style')}>${opt('classic', 'Classic', m.style)}${opt('dark', 'Dark', m.style)}${opt('empty', 'Empty (no numbers)', m.style)}</select></label>
         <button class="btn ${missing ? 'pri' : ''}" data-form="download">Download from hens333.com</button>

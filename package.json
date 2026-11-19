@@ -1,6 +1,6 @@
 {
   "name": "dbd-overlay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Free, open source overlay toolkit for Dead by Daylight. Not affiliated with Behaviour Interactive.",
   "main": "src/main/main.js",
   "license": "MIT",

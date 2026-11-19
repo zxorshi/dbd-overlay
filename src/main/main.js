@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell, Tray, Menu, nativeImage } = require('electron');
 const { execFile } = require('node:child_process');
 const leagues = require('./leagues');
+const hooks = require('./hooks');
 const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
@@ -129,7 +130,7 @@ function broadcast() {
 function act(name, payload) {
   const ok = dispatch(state, name, payload, { now: Date.now(), perks, characters, catalog, random: Math.random });
   if (!ok) return;
-  if (name.startsWith('hotkey.')) registerHotkeys();
+  if (name.startsWith('hotkey.') || name === 'settings.set' || name === 'perks.remove') registerHotkeys();
   if (name.startsWith('map.')) session.reset();
   if (name.startsWith('map.') || name === 'settings.set') syncDetector();
   syncOverlayWindows();
@@ -178,14 +179,14 @@ function centerCrosshair(win) {
 }
 
 // ---- hotkeys ---------------------------------------------------------------
+// An action name may carry one argument after a colon: "perks.fire:ds", "score.hook:2".
+function runHotkey(action) {
+  const [name, arg] = action.split(':');
+  act(name, arg === undefined ? undefined : { id: arg, i: Number(arg) });
+}
 function registerHotkeys() {
-  globalShortcut.unregisterAll();
-  const failed = [];
-  for (const [action, key] of Object.entries(state.hotkeys)) {
-    if (!key) continue;
-    try { if (!globalShortcut.register(key, () => act(action))) failed.push(key); } catch { failed.push(key); }
-  }
-  state.hotkeysFailed = failed;
+  state.hotkeysFailed = hooks.apply(state.hotkeys, state.settings.inputMode, runHotkey);
+  state.passthroughAvailable = hooks.passthroughAvailable;
 }
 
 // ---- local server (overlay pages + live state) -----------------------------
@@ -296,5 +297,5 @@ app.whenReady().then(async () => {
   syncDetector();
 });
 app.on('before-quit', () => { quitting = true; });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => hooks.stop());
 app.on('window-all-closed', () => app.quit());

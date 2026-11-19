@@ -17,7 +17,10 @@ const slotMs = (slot) => slot.base + (slot.startedAt ? Date.now() - slot.started
 const render = {
   timer(s) {
     const t = s.timer;
-    const cell = (i) => `<div class="col ${t.active === i ? '' : 'dim'}"><span class="lab">${esc(t.labels[i])}</span><span class="num">${fmt(slotMs(t.slots[i]))}</span></div>`;
+    // Chasing the first run's time: warn in the last seconds, switch to the win color once it is beaten.
+    const a = slotMs(t.slots[0]); const b = slotMs(t.slots[1]);
+    const chase = t.slots[1].startedAt && a > 0 ? (b >= a ? 'ok' : a - b <= t.warnSeconds * 1000 ? 'warn' : '') : '';
+    const cell = (i) => `<div class="col ${t.active === i ? '' : 'dim'} ${i === 1 ? chase : ''}"><span class="lab">${esc(t.labels[i])}</span><span class="num">${fmt(slotMs(t.slots[i]))}</span></div>`;
     if (t.layout === 'single') return `<div class="plate">${cell(t.active)}</div>`;
     if (t.layout === 'compact') return `<div class="plate"><span class="num sm">${fmt(slotMs(t.slots[0]))}</span><span class="lab">vs</span><span class="num sm">${fmt(slotMs(t.slots[1]))}</span></div>`;
     return `<div class="plate">${cell(0)}<div class="col"><span class="lab">Rounds</span><span class="num sm">${t.rounds[0]} : ${t.rounds[1]}</span></div>${cell(1)}</div>`;

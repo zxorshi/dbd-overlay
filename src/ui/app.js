@@ -20,7 +20,8 @@ const HOTKEY_LABELS = {
   'timer.toggle': 'Timer: start / stop', 'timer.switch': 'Timer: switch player', 'timer.reset': 'Timer: reset', 'timer.scoreRound': 'Timer: score round',
   'perks.fireAll': 'Perk timers: fire all armed', 'streak.win': 'Streak: win', 'streak.loss': 'Streak: loss',
   'perkShuffle.roll': 'Perk shuffle: roll', 'killerShuffle.roll': 'Killer shuffle: roll', 'overlays.toggleLock': 'Overlays: lock / unlock all',
-  'overlays.toggleAll': 'Overlays: show / hide all', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
+  'overlays.toggleAll': 'Overlays: show / hide all', 'timer.cycle': 'Timer: start, stop, reset in turn', 'timer.select:0': 'Timer: select player 1', 'timer.select:1': 'Timer: select player 2', 'timer.penalty': 'Timer: penalty', 'perks.clear': 'Perk timers: clear',
+  'score.hook:0': 'Scoreboard: hook survivor 1', 'score.hook:1': 'Scoreboard: hook survivor 2', 'score.hook:2': 'Scoreboard: hook survivor 3', 'score.hook:3': 'Scoreboard: hook survivor 4', 'score.bump:gen': 'Scoreboard: generator done', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
 };
 
 let S = null; let D = null; let cur = 'timer';
@@ -32,6 +33,23 @@ const fmt = (ms) => { const s = Math.abs(ms) / 1000; return (ms < 0 ? '-' : '') 
 const slotMs = (x) => x.base + (x.startedAt ? Date.now() - x.startedAt : 0);
 const key = (action) => (S.hotkeys[action] ? `<kbd>${esc(S.hotkeys[action])}</kbd>` : '');
 const art = (kind, id, cls) => (id && D.art[kind].includes(id) ? `<img class="${cls}" src="http://127.0.0.1:${D.port}/art/${kind}/${id}.png" alt="" loading="lazy">` : `<span class="${cls}"></span>`);
+let capturing = null;
+const bindBtn = (action) => `<span class="row"><button class="btn sm ${capturing === action ? 'pri' : ''}" data-bind="${action}">${capturing === action ? 'Press a key' : esc(S.hotkeys[action] || 'none')}</button>${S.hotkeys[action] ? `<button class="btn sm" ${A('hotkey.set', { action, key: '' })} aria-label="Clear binding">✕</button>` : ''}${S.hotkeys[action] && (S.hotkeysFailed || []).includes(S.hotkeys[action]) ? '<span class="bad">not active</span>' : ''}</span>`;
+function tokenFromCode(code) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^F\d{1,2}$/.test(code)) return code;
+  if (/^Numpad\d$/.test(code)) return 'num' + code.slice(6);
+  return ({ Space: 'Space', Tab: 'Tab', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Insert: 'Insert', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec', CapsLock: 'Capslock' })[code] || null;
+}
+function capture(e, token) {
+  if (!capturing) return;
+  e.preventDefault(); e.stopPropagation();
+  if (token) { const mods = (e.ctrlKey ? 'Ctrl+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : ''); api.act('hotkey.set', { action: capturing, key: mods + token }); }
+  capturing = null; panel(true);
+}
+document.addEventListener('keydown', (e) => { if (!capturing) return; if (e.key === 'Escape') return capture(e, null); if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return; const t = tokenFromCode(e.code); if (t) capture(e, t); }, true);
+document.addEventListener('mousedown', (e) => { if (capturing && [1, 3, 4].includes(e.button)) capture(e, 'Mouse' + ({ 1: 3, 3: 4, 4: 5 })[e.button]); }, true);
 const opt = (v, label, sel) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${label}</option>`;
 
 function overlayCard(id) {
@@ -67,14 +85,17 @@ const VIEWS = {
       <div class="row">
         <button class="btn pri" ${A('timer.toggle')}>Start / Stop ${key('timer.toggle')}</button>
         <button class="btn" ${A('timer.switch')}>Switch player ${key('timer.switch')}</button>
-        <button class="btn" ${A('timer.penalty', { ms: 5000 })}>Penalty −5 s</button>
+        <button class="btn" ${A('timer.penalty')}>Penalty −${(t.penaltyMs || 5000) / 1000} s ${key('timer.penalty')}</button>
         <button class="btn warn" ${A('timer.reset')}>Reset ${key('timer.reset')}</button>
       </div>
       <div class="row"><button class="btn" ${A('timer.scoreRound')}>Score round (longer run wins) ${key('timer.scoreRound')}</button><button class="btn" ${A('timer.newMatch')}>New match</button></div>
       ${(t.history || []).length ? `<table><tr><th>Round</th><th>${esc(t.labels[0])}</th><th>${esc(t.labels[1])}</th><th>Winner</th></tr>${t.history.map((h, i) => `<tr><td>${i + 1}</td><td>${fmt(h.a)}</td><td>${fmt(h.b)}</td><td>${esc(t.labels[h.winner])}</td></tr>`).join('')}</table>` : ''}
       <div class="row"><label for="tl">Layout</label><select id="tl" style="width:auto" ${B('timer.set', 'layout')}>
         ${opt('dual', 'Dual with rounds', t.layout)}${opt('single', 'Single (active player)', t.layout)}${opt('compact', 'Compact', t.layout)}</select></div>
-      <p class="note">Penalty deducts out-of-sight time from the active run.</p></div>`];
+      <div class="row"><label class="row">Warning color <input type="number" min="0" max="120" value="${t.warnSeconds}" ${B('timer.set', 'warnSeconds')}> s before the time to beat</label>
+        <label class="row">Penalty <input type="number" min="1" max="60" value="${(t.penaltyMs || 5000) / 1000}" data-penalty> s</label>
+        <label><input type="checkbox" ${t.startOnSelect ? 'checked' : ''} ${B('timer.set', 'startOnSelect')}> Selecting a player starts their timer</label></div>
+      <p class="note">Penalty deducts out-of-sight time from the active run. More timer keys (one-key start/stop/reset, select player) are in Settings.</p></div>`];
   },
   crosshair() {
     const c = S.crosshair;
@@ -92,7 +113,7 @@ const VIEWS = {
       <input type="checkbox" aria-label="Armed" ${p.armed ? 'checked' : ''} ${B('perks.update', 'armed', { id: p.id })}>
       <input type="text" aria-label="Name" value="${esc(p.name)}" ${B('perks.update', 'name', { id: p.id })}>
       <input type="number" aria-label="Seconds" min="1" max="600" value="${p.seconds}" ${B('perks.update', 'seconds', { id: p.id })}>
-      <button class="btn sm" ${A('perks.fire', { id: p.id })}>Fire</button>
+      <button class="btn sm" ${A('perks.fire', { id: p.id })}>Fire</button>${bindBtn('perks.fire:' + p.id)}
       <button class="btn sm warn" ${A('perks.remove', { id: p.id })} aria-label="Remove ${esc(p.name)}">✕</button></div>`).join('');
     return ['Perk Timers', 'Tick the perks in play, then fire every armed timer with one hotkey. Each timer ends with its own tone.', `<div class="card">
       <h2>Timers (seconds)</h2><div class="list">${rows}</div>
@@ -135,12 +156,12 @@ const VIEWS = {
       <div class="checks">${all.map((c) => `<label><input type="checkbox" ${ks.excluded.includes(c.id) ? '' : 'checked'} data-pool="killerShuffle" value="${c.id}">${art('portraits', c.id, 'portrait sm')}${esc(c.name)}</label>`).join('')}</div></div>`];
   },
   settings() {
-    const rows = Object.entries(HOTKEY_LABELS).map(([a, label]) => `<div class="result"><span>${label}</span>
-      <span class="row"><input type="text" style="width:150px" aria-label="${label}" value="${esc(S.hotkeys[a] || '')}" placeholder="none" data-hotkey="${a}">
-      ${(S.hotkeysFailed || []).includes(S.hotkeys[a]) ? '<span class="bad">not registered</span>' : ''}</span></div>`).join('');
-    return ['Settings', 'Global hotkeys and overlay options.', `<div class="card"><h2>Bindings</h2><div class="list">${rows}</div>
-      <p class="note">Format examples: <kbd>F1</kbd> <kbd>Alt+1</kbd> <kbd>Ctrl+Shift+T</kbd> <kbd>num1</kbd>. Leave empty for none. Press Enter to apply.</p>
-      <p class="note">A bound key is taken by this app and does not reach the game.</p></div>
+    const rows = Object.entries(HOTKEY_LABELS).map(([a, label]) => `<div class="result"><span>${label}</span>${bindBtn(a)}</div>`).join('');
+    return ['Settings', 'Global hotkeys and overlay options.', `<div class="card"><h2>Bindings</h2><div class="keys">${rows}</div>
+      <p class="note">Click a binding, then press the key or mouse button (middle or side buttons). Esc cancels.</p></div>
+      <div class="card"><h2>Input mode</h2>
+        <div class="row"><select style="width:auto" aria-label="Input mode" ${B('settings.set', 'inputMode')}>${opt('standard', 'Standard: the key is taken by this app', S.settings.inputMode)}${S.passthroughAvailable ? opt('passthrough', 'Pass-through: the key also reaches the game', S.settings.inputMode) : ''}</select></div>
+        <p class="note">Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>
       <div class="card"><h2>Overlays</h2>
         <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
         <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
@@ -173,6 +194,8 @@ function panel(force) {
 }
 
 document.addEventListener('click', (e) => {
+  const bind = e.target.closest('[data-bind]');
+  if (bind) { capturing = capturing === bind.dataset.bind ? null : bind.dataset.bind; panel(true); return; }
   const tool = e.target.closest('[data-tool]');
   if (tool) { cur = tool.dataset.tool; rail(); panel(true); return; }
   const copy = e.target.closest('[data-copy]');
@@ -344,6 +367,7 @@ document.addEventListener('change', (e) => {
   else if (t.dataset.team) { const teams = [...S.score.teams]; teams[Number(t.dataset.team)] = t.value; api.act('score.set', { teams }); }
   else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
   else if ('mappick' in t.dataset) { api.act('map.pick', { id: t.value }); t.blur(); }
+  else if ('penalty' in t.dataset) api.act('timer.set', { penaltyMs: Math.max(1, Number(t.value)) * 1000 });
   else if (t.id === 'st-role') S._statRole = t.value;
 });
 

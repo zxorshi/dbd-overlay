@@ -40,3 +40,4 @@ body.unlocked #frame::before { content: 'drag to move'; position: absolute; top:
 .sv i { width: 7px; height: 14px; border-radius: 2px; border: 1px solid currentColor; opacity: 0.55; }
 .sv i.on { background: currentColor; opacity: 1; }
 .sv.dead { color: #e58a6f; }
+.warn { color: #f0c05a; }

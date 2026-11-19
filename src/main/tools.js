@@ -29,6 +29,9 @@ function defaultState() {
       rounds: [0, 0],
       history: [],
       bestOf: 3,
+      startOnSelect: false,
+      warnSeconds: 20, // the second run changes color this many seconds before it reaches the first run's time
+      penaltyMs: 5000,
     },
     crosshair: { shape: 'cross', size: 24, thickness: 2, gap: 4, dot: false, outline: true, offsetX: 0, offsetY: 0 },
     perks: {
@@ -54,7 +57,7 @@ function defaultState() {
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
     league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
     map: { current: null, locked: false, auto: true, region: 'full', lastText: '', lastError: '', download: '' },
-    settings: { closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
+    settings: { inputMode: 'standard', closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
   };
 }
 
@@ -79,12 +82,28 @@ const actions = {
     const lock = open.some((o) => !o.locked);
     open.forEach((o) => { o.locked = lock; });
   },
-  'hotkey.set'(s, { action, key }) { s.hotkeys[action] = key; },
+  'hotkey.set'(s, { action, key }) {
+    // One binding per key: taking a key clears it from any other action.
+    if (key) for (const a of Object.keys(s.hotkeys)) if (s.hotkeys[a] === key) s.hotkeys[a] = '';
+    s.hotkeys[action] = key;
+  },
 
   // ---- 1v1 timer
   'timer.toggle'(s, _p, { now }) {
     const slot = s.timer.slots[s.timer.active];
     if (slot.startedAt) { slot.base += now - slot.startedAt; slot.startedAt = null; } else slot.startedAt = now;
+  },
+  // One key for a whole run: start, then stop, then reset.
+  'timer.cycle'(s, _p, { now }) {
+    const slot = s.timer.slots[s.timer.active];
+    if (slot.startedAt) { slot.base += now - slot.startedAt; slot.startedAt = null; } else if (slot.base > 0) slot.base = 0; else slot.startedAt = now;
+  },
+  'timer.select'(s, { i }, { now }) {
+    const t = s.timer; if (i !== 0 && i !== 1) return;
+    const cur = t.slots[t.active];
+    if (i !== t.active && cur.startedAt) { cur.base += now - cur.startedAt; cur.startedAt = null; }
+    t.active = i;
+    if (t.startOnSelect && !t.slots[i].startedAt) t.slots[i].startedAt = now;
   },
   'timer.switch'(s, _p, { now }) {
     const cur = s.timer.slots[s.timer.active];
@@ -92,7 +111,8 @@ const actions = {
     s.timer.active = s.timer.active ? 0 : 1;
   },
   'timer.reset'(s) { s.timer.slots.forEach((x) => { x.base = 0; x.startedAt = null; }); s.timer.active = 0; },
-  'timer.penalty'(s, { ms = 5000 }) {
+  'timer.penalty'(s, { ms }) {
+    ms = Number(ms) || s.timer.penaltyMs || 5000;
     // Out-of-sight time is deducted from the survivor's run.
     const slot = s.timer.slots[s.timer.active];
     slot.base = Math.max(slot.startedAt ? -Infinity : 0, slot.base - ms);
@@ -120,7 +140,7 @@ const actions = {
   'perks.add'(s, { name = 'New timer', seconds = 30 }, { now }) {
     s.perks.list.push({ id: 't' + now, name, seconds, armed: true, tone: 600, endsAt: null });
   },
-  'perks.remove'(s, { id }) { s.perks.list = s.perks.list.filter((p) => p.id !== id); },
+  'perks.remove'(s, { id }) { s.perks.list = s.perks.list.filter((p) => p.id !== id); delete s.hotkeys['perks.fire:' + id]; },
 
   // ---- streak
   'streak.win'(s) {
@@ -219,7 +239,8 @@ Object.assign(actions, {
   // ---- match scoreboard
   'score.set'(s, f) { if (f.bestOf) f.bestOf = Number(f.bestOf); Object.assign(s.score, f); },
   'score.current'(s, f) { Object.assign(s.score.current, f); },
-  'score.bump'(s, { field, delta }) {
+  'score.bump'(s, { field, delta, id }) {
+    if (id === 'gen') { field = 'gensLeft'; delta = -1; } // hotkey form: score.bump:gen
     const lim = SCORE_LIMITS[field]; if (!lim) return;
     s.score.current[field] = clamp(s.score.current[field] + delta, lim[0], lim[1]);
   },

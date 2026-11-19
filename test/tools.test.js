@@ -61,3 +61,30 @@ test('merge keeps saved values and adds new keys', () => {
   const m = merge({ a: 1, b: { c: 2, d: 3 } }, { b: { c: 9 } });
   assert.deepEqual(m, { a: 1, b: { c: 9, d: 3 } });
 });
+
+const { scoreSummary, statsSummary, derive } = require('../src/main/tools');
+test('scoreboard: set decided by stages, then gens left', () => {
+  const s = defaultState();
+  dispatch(s, 'score.bump', { field: 'stages', delta: 20 }, ctx(0));
+  assert.equal(s.score.current.stages, 12);
+  dispatch(s, 'score.current', { stages: 8, gensLeft: 2 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
+  assert.equal(s.score.current.killerTeam, 1);
+  dispatch(s, 'score.current', { stages: 8, gensLeft: 1 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
+  const sum = scoreSummary(s.score);
+  assert.deepEqual(sum.sets, [1, 0]);
+  assert.equal(sum.need, 2);
+});
+test('rulesets: banned perk and duplicate perk are reported', () => {
+  const s = defaultState();
+  dispatch(s, 'rules.import', { json: JSON.stringify({ name: 'Test', banned: ['Decisive Strike'], maxExhaustion: 1 }) }, ctx(5));
+  dispatch(s, 'builds.add', { perks: ['DecisiveStrike', 'Lithe', 'Sprint_Burst', null] }, ctx(7));
+  s.lobby.survivors[0].perks[0] = 'Lithe'; s.lobby.survivors[1].perks[0] = 'Lithe';
+  const d = derive(s, perks);
+  assert.equal(d.buildIssues[s.builds.list[0].id].length, 2);
+  assert.ok(d.lobbyIssues.some((x) => x.includes('Lithe used 2 times')));
+});
+test('stats: win rate per character', () => {
+  const sum = statsSummary([{ character: 'A', result: 'win' }, { character: 'A', result: 'loss' }, { character: 'B', result: 'win' }]);
+  assert.equal(sum.total.rate, 67);
+  assert.equal(sum.by[0].key, 'B');
+});

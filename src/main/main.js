@@ -3,11 +3,13 @@ const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard } = requi
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { defaultState, dispatch, merge, OVERLAY_IDS, STREAK_RULES } = require('./tools');
+const { defaultState, dispatch, merge, derive, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS } = require('./tools');
 
 const ROOT = path.join(__dirname, '..', '..');
 const perks = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'perks.json'), 'utf8'));
 const characters = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'characters.json'), 'utf8'));
+let art = { perks: [], portraits: [] };
+try { art = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'game', 'manifest.json'), 'utf8')); } catch { /* no art downloaded */ }
 const PORT = Number(process.env.DBD_OVERLAY_PORT) || 47810;
 
 let state = defaultState();
@@ -27,6 +29,7 @@ function save() {
 }
 
 function broadcast() {
+  state.derived = derive(state, perks);
   const json = JSON.stringify(state);
   if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('state', state);
   for (const res of sseClients) res.write(`data: ${json}\n\n`);
@@ -91,13 +94,14 @@ function registerHotkeys() {
 }
 
 // ---- local server (overlay pages + live state) -----------------------------
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 function serve() {
   const dir = path.join(ROOT, 'src', 'overlay');
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     if (url.pathname === '/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+      state.derived = derive(state, perks);
       res.write(`data: ${JSON.stringify(state)}\n\n`);
       sseClients.add(res);
       req.on('close', () => sseClients.delete(res));
@@ -105,7 +109,14 @@ function serve() {
     }
     if (url.pathname === '/data') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ perks, characters }));
+      return res.end(JSON.stringify({ perks, characters, art }));
+    }
+    const m = url.pathname.match(/^\/art\/(perks|portraits)\/([A-Za-z0-9_]+)\.png$/);
+    if (m) {
+      return fs.readFile(path.join(ROOT, 'assets', 'game', m[1], m[2] + '.png'), (err, buf) => {
+        if (err) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=86400' }); res.end(buf);
+      });
     }
     const file = url.pathname.startsWith('/overlay/') ? 'overlay.html' : path.basename(url.pathname);
     fs.readFile(path.join(dir, file), (err, buf) => {
@@ -121,7 +132,7 @@ function serve() {
 app.whenReady().then(async () => {
   load();
   await serve();
-  ipcMain.handle('init', () => ({ state, perks, characters, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
+  ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks) }), presets: CHALLENGE_PRESETS, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 

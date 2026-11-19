@@ -3,7 +3,8 @@ const id = location.pathname.split('/').pop();
 const isWindow = new URLSearchParams(location.search).has('win');
 const root = document.getElementById('root');
 let state = null;
-let data = { perks: [], characters: [] };
+let data = { perks: [], characters: [], art: { perks: [], portraits: [] } };
+const icon = (kind, key, cls) => (key && data.art[kind].includes(key) ? `<img class="${cls}" src="/art/${kind}/${key}.png" alt="">` : '');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const nameOf = (list, key) => (list.find((x) => x.id === key) || {}).name || '';
 
@@ -45,11 +46,11 @@ const render = {
     return `<div class="plate"><div class="col"><span class="lab">${esc(k.label)}</span><span class="num">${k.current}</span></div><div class="col"><span class="lab">Best</span><span class="num sm">${k.best}</span></div><div class="col"><span class="lab">Attempt</span><span class="num sm">${k.attempts}</span></div></div>`;
   },
   perkShuffle(s) {
-    return `<div class="rows">${s.perkShuffle.result.map((p) => `<div class="plate"><span class="name">${p ? esc(nameOf(data.perks, p)) : '...'}</span></div>`).join('')}</div>`;
+    return `<div class="perkrow">${s.perkShuffle.result.map((p) => `<div class="perk">${icon('perks', p, 'pi') || '<div class="pi empty"></div>'}<span class="lab">${p ? esc(nameOf(data.perks, p)) : ''}</span></div>`).join('')}</div>`;
   },
   killerShuffle(s) {
     const k = s.killerShuffle;
-    return `<div class="plate"><div class="col"><span class="lab">Next killer</span><span class="name">${k.result ? esc(nameOf(data.characters, k.result)) : '...'}</span></div></div>`;
+    return `<div class="plate">${icon('portraits', k.result, 'portrait')}<div class="col"><span class="lab">Next killer</span><span class="name">${k.result ? esc(nameOf(data.characters, k.result)) : '...'}</span></div></div>`;
   },
 };
 
@@ -82,9 +83,51 @@ function draw() {
   if (!isWindow) document.body.style.opacity = o.opacity;
   const html = render[id](state);
   if (root.innerHTML !== html) root.innerHTML = html;
+  if (window.parent !== window) { // preview inside the app: shrink to fit
+    root.style.transform = '';
+    const k = Math.min(1, (innerWidth - 16) / root.getBoundingClientRect().width, (innerHeight - 12) / root.getBoundingClientRect().height);
+    root.style.transform = k < 1 ? `scale(${k})` : '';
+  }
   sounds();
 }
 
 fetch('/data').then((r) => r.json()).then((d) => { data = d; draw(); });
 new EventSource('/events').onmessage = (e) => { state = JSON.parse(e.data); draw(); };
 setInterval(draw, 100);
+
+// ---- phase 3 overlays
+const perkStrip = (ids, cls) => `<div class="perkrow tight">${ids.map((p) => icon('perks', p, cls) || `<div class="${cls} empty"></div>`).join('')}</div>`;
+Object.assign(render, {
+  builds(s) {
+    const b = s.builds.list.find((x) => x.id === s.builds.activeId);
+    if (!b) return '<div class="plate"><span class="lab">No build selected</span></div>';
+    const issues = (s.derived.buildIssues[b.id] || []);
+    const status = s.derived.ruleset ? `<span class="lab ${issues.length ? 'done' : 'ok'}">${issues.length ? esc(issues[0]) : 'Legal: ' + esc(s.derived.ruleset)}</span>` : '';
+    return `<div class="plate">${icon('portraits', b.killer, 'portrait')}<div class="col"><span class="lab">${esc(b.name)}</span>${perkStrip(b.perks, 'pi mdm')}${status}</div></div>`;
+  },
+  lobby(s) {
+    return `<div class="rows">${s.lobby.survivors.map((v) => `<div class="plate"><span class="lab who">${esc(v.name)}</span>${perkStrip(v.perks, 'pi sm')}</div>`).join('')}</div>`;
+  },
+  score(s) {
+    const sc = s.score; const d = s.derived.score; const c = sc.current;
+    const team = (i) => `<div class="col ${c.killerTeam === i ? '' : 'dim'}"><span class="lab">${c.killerTeam === i ? 'Killer' : 'Survivors'}</span><span class="name">${esc(sc.teams[i])}</span></div>`;
+    return `<div class="plate">${team(0)}<span class="num">${d.sets[0]} : ${d.sets[1]}</span>${team(1)}
+      ${icon('portraits', c.killer, 'portrait')}
+      <div class="col"><span class="lab">Stages</span><span class="num sm">${c.stages}/12</span></div>
+      <div class="col"><span class="lab">Gens left</span><span class="num sm">${c.gensLeft}</span></div>
+      <div class="col"><span class="lab">Kills</span><span class="num sm">${c.kills}</span></div>
+      ${d.pending ? `<div class="col"><span class="lab">To beat</span><span class="num sm">${d.pending.stages}</span></div>` : ''}
+      ${d.champion !== null ? `<div class="col"><span class="lab ok">Winner</span><span class="name">${esc(sc.teams[d.champion])}</span></div>` : ''}</div>`;
+  },
+  stats(s) {
+    const t = s.derived.stats.total; const top = s.derived.stats.by[0];
+    return `<div class="plate"><div class="col"><span class="lab">Record</span><span class="num sm">${t.wins} W · ${t.losses} L</span></div>
+      <div class="col"><span class="lab">Win rate</span><span class="num sm">${t.rate}%</span></div>
+      ${top ? `${icon('portraits', top.key, 'portrait')}<div class="col"><span class="lab">Top</span><span class="name">${esc(nameOf(data.characters, top.key) || top.key)} ${top.rate}%</span></div>` : ''}</div>`;
+  },
+  challenge(s) {
+    const c = s.challenge;
+    return `<div class="plate"><div class="col"><span class="lab">${esc(c.name)}</span><span class="num sm">${c.wins}${c.target ? ' / ' + c.target : ''} wins · ${c.played} played</span>
+      ${c.rules.map((r) => `<span class="rule">${esc(r)}</span>`).join('')}</div></div>`;
+  },
+});

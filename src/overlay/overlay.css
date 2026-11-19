@@ -16,3 +16,15 @@ body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba
 .rows .plate { justify-content: space-between; padding: 5px 12px; }
 .done { color: #e58a6f; }
 .name { font-size: 15px; font-weight: 600; }
+.perkrow { display: flex; gap: 8px; }
+.perk { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 84px; text-align: center; }
+.perk .lab { white-space: normal; font-size: 9px; text-shadow: 0 1px 2px #000; opacity: 1; }
+.pi { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7)); }
+.pi.sm { width: 40px; height: 40px; }
+.pi.empty { border: 1px dashed color-mix(in srgb, var(--c) 45%, transparent); transform: rotate(45deg) scale(0.6); }
+.portrait { height: 64px; width: 64px; object-fit: cover; object-position: top; border-radius: 6px; }
+.perkrow.tight { gap: 2px; }
+.pi.mdm { width: 52px; height: 52px; }
+.ok { color: #9fd08a; }
+.who { min-width: 90px; }
+.rule { font-size: 13px; }

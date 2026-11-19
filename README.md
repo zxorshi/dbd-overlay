@@ -45,7 +45,7 @@ npm test
 
 ## Data and credits
 
-Perk and character names come from the dbd.tricky.lol community API. Dead by Daylight and its names are property of Behaviour Interactive. No game art is included in this repository.
+Perk and character names come from the dbd.tricky.lol community API. Perk icons and portraits come from deadbydaylight.wiki.gg. Dead by Daylight, its names and its art are property of Behaviour Interactive and are not covered by the MIT license. See `assets/game/NOTICE.md`.
 
 ## License
 

@@ -1,17 +1,18 @@
 // Tool state and actions. Pure logic: no Electron imports, so it runs under `node --test`.
 // Every action mutates `state` and returns nothing. `ctx` supplies { now, perks, characters, random }.
 
-const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'killerShuffle'];
+const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'killerShuffle', 'builds', 'lobby', 'score', 'stats', 'challenge'];
 
-const overlayDefaults = (i) => ({
-  open: false, locked: false, x: 80 + i * 30, y: 80 + i * 30, w: 360, h: 140,
+const SIZES = { lobby: [380, 260], score: [900, 120], builds: [420, 150], stats: [520, 110], challenge: [380, 200], perkShuffle: [400, 150], perks: [300, 200] };
+const overlayDefaults = (i, id) => ({
+  open: false, locked: false, x: 80 + i * 30, y: 80 + i * 30, w: (SIZES[id] || [360])[0], h: (SIZES[id] || [0, 140])[1],
   color: '#d7e3c5', scale: 1, opacity: 1,
 });
 
 function defaultState() {
   return {
     version: 1,
-    overlays: Object.fromEntries(OVERLAY_IDS.map((id, i) => [id, overlayDefaults(i)])),
+    overlays: Object.fromEntries(OVERLAY_IDS.map((id, i) => [id, overlayDefaults(i, id)])),
     hotkeys: {
       'timer.toggle': 'F1', 'timer.switch': 'F2', 'timer.reset': 'F3',
       'perks.fireAll': 'F4', 'streak.win': '', 'streak.loss': '',
@@ -38,6 +39,15 @@ function defaultState() {
     streak: { label: 'Streak', rule: '3k', current: 0, best: 0, attempts: 1, history: [] },
     perkShuffle: { role: 'survivor', excluded: [], locked: [false, false, false, false], result: [null, null, null, null] },
     killerShuffle: { excluded: [], noRepeat: true, played: [], result: null },
+    builds: { list: [], activeId: null, rulesetId: null },
+    rulesets: { list: [] },
+    lobby: { survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
+    score: {
+      teams: ['Team A', 'Team B'], bestOf: 3, games: [],
+      current: { killerTeam: 0, killer: null, stages: 0, gensLeft: 5, kills: 0 },
+    },
+    stats: { matches: [] },
+    challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
   };
 }
 
@@ -136,6 +146,138 @@ const actions = {
   'killerShuffle.resetPlayed'(s) { s.killerShuffle.played = []; },
 };
 
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const SCORE_LIMITS = { stages: [0, 12], gensLeft: [0, 5], kills: [0, 4] };
+const CHALLENGE_PRESETS = {
+  ironman: { name: 'Ironman', rules: ['One win on every killer', 'Killer picked at random, no repeats', 'A loss restarts the run'] },
+  endless: { name: 'Endless Trials', rules: ['Add one rule after every match', 'Rules stay until the run ends'] },
+  noslow: { name: 'No Slowdown', rules: ['No generator slowdown perks', 'No add-ons'] },
+};
+
+Object.assign(actions, {
+  // ---- build library
+  'builds.add'(s, { role = 'survivor', perks = [null, null, null, null], name }, { now }) {
+    const id = 'b' + now + s.builds.list.length;
+    s.builds.list.push({ id, name: name || 'New build', role, killer: null, perks: [...perks], tags: '' });
+    s.builds.activeId = id;
+  },
+  'builds.update'(s, { id, ...f }) { const b = s.builds.list.find((x) => x.id === id); if (b) Object.assign(b, f); },
+  'builds.setPerk'(s, { id, slot, perk }) { const b = s.builds.list.find((x) => x.id === id); if (b) b.perks[slot] = perk; },
+  'builds.remove'(s, { id }) { s.builds.list = s.builds.list.filter((b) => b.id !== id); if (s.builds.activeId === id) s.builds.activeId = null; },
+  'builds.set'(s, f) { Object.assign(s.builds, f); },
+
+  // ---- rulesets
+  'rules.add'(s, { name = 'New ruleset' }, { now }) {
+    const id = 'r' + now; s.rulesets.list.push({ id, name, banned: [], uniquePerTeam: true, maxExhaustion: 0 }); s.builds.rulesetId = id;
+  },
+  'rules.update'(s, { id, ...f }) { const r = s.rulesets.list.find((x) => x.id === id); if (r) Object.assign(r, f); },
+  'rules.toggleBan'(s, { id, perk }) {
+    const r = s.rulesets.list.find((x) => x.id === id); if (!r) return;
+    r.banned = r.banned.includes(perk) ? r.banned.filter((x) => x !== perk) : [...r.banned, perk];
+  },
+  'rules.remove'(s, { id }) { s.rulesets.list = s.rulesets.list.filter((r) => r.id !== id); if (s.builds.rulesetId === id) s.builds.rulesetId = null; },
+  // Import accepts { name, banned: [perk id or perk name], uniquePerTeam, maxExhaustion }.
+  'rules.import'(s, { json }, { now, perks }) {
+    let d; try { d = JSON.parse(json); } catch { return; }
+    if (!d || typeof d !== 'object') return;
+    const find = (x) => (perks.find((p) => p.id === x || p.name.toLowerCase() === String(x).toLowerCase()) || {}).id;
+    const id = 'r' + now;
+    s.rulesets.list.push({
+      id, name: String(d.name || 'Imported ruleset').slice(0, 80),
+      banned: [...new Set((Array.isArray(d.banned) ? d.banned : []).map(find).filter(Boolean))],
+      uniquePerTeam: d.uniquePerTeam !== false, maxExhaustion: Number(d.maxExhaustion) || 0,
+    });
+    s.builds.rulesetId = id;
+  },
+
+  // ---- lobby perks
+  'lobby.setPerk'(s, { i, slot, perk }) { s.lobby.survivors[i].perks[slot] = perk; },
+  'lobby.setName'(s, { i, name }) { s.lobby.survivors[i].name = name; },
+  'lobby.loadBuild'(s, { i, id }) { const b = s.builds.list.find((x) => x.id === id); if (b) s.lobby.survivors[i].perks = [...b.perks]; },
+  'lobby.clear'(s) { s.lobby.survivors.forEach((v) => { v.perks = [null, null, null, null]; }); },
+
+  // ---- match scoreboard
+  'score.set'(s, f) { if (f.bestOf) f.bestOf = Number(f.bestOf); Object.assign(s.score, f); },
+  'score.current'(s, f) { Object.assign(s.score.current, f); },
+  'score.bump'(s, { field, delta }) {
+    const lim = SCORE_LIMITS[field]; if (!lim) return;
+    s.score.current[field] = clamp(s.score.current[field] + delta, lim[0], lim[1]);
+  },
+  'score.endGame'(s) {
+    const c = s.score.current; s.score.games.push({ ...c });
+    s.score.current = { killerTeam: c.killerTeam ? 0 : 1, killer: null, stages: 0, gensLeft: 5, kills: 0 };
+  },
+  'score.undoGame'(s) { const g = s.score.games.pop(); if (g) s.score.current = g; },
+  'score.reset'(s) { s.score.games = []; s.score.current = { killerTeam: 0, killer: null, stages: 0, gensLeft: 5, kills: 0 }; },
+
+  // ---- statistics
+  'stats.add'(s, m, { now }) {
+    s.stats.matches.push({ ts: now, role: m.role || 'killer', character: m.character || null, map: m.map || '',
+      result: m.result || 'win', stages: Number(m.stages) || 0, gensLeft: Number(m.gensLeft) || 0, kills: Number(m.kills) || 0 });
+  },
+  'stats.remove'(s, { ts }) { s.stats.matches = s.stats.matches.filter((m) => m.ts !== ts); },
+
+  // ---- challenges
+  'challenge.set'(s, f) { Object.assign(s.challenge, f); },
+  'challenge.preset'(s, { id }) { const p = CHALLENGE_PRESETS[id]; if (p) s.challenge = { name: p.name, rules: [...p.rules], played: 0, wins: 0, target: 0 }; },
+  'challenge.addRule'(s, { text }) { if (text && text.trim()) s.challenge.rules.push(text.trim().slice(0, 120)); },
+  'challenge.removeRule'(s, { i }) { s.challenge.rules.splice(i, 1); },
+  'challenge.result'(s, { win }) { s.challenge.played += 1; if (win) s.challenge.wins += 1; },
+  'challenge.reset'(s) { s.challenge.played = 0; s.challenge.wins = 0; },
+});
+
+// ---- derived values (computed for the UI and overlays, never saved as source data)
+const EXHAUSTION = ['Sprint Burst', 'Balanced Landing', 'Lithe', 'Dead Hard', 'Head On', 'Overcome', 'Smash Hit', 'Background Player', 'Dramaturgy'];
+function buildIssues(perkIds, rs, names) {
+  if (!rs) return [];
+  const out = [];
+  perkIds.filter(Boolean).forEach((p) => { if (rs.banned.includes(p)) out.push(`${names[p] || p} is banned`); });
+  if (rs.maxExhaustion > 0) { const n = perkIds.filter((p) => EXHAUSTION.includes(names[p])).length; if (n > rs.maxExhaustion) out.push(`${n} exhaustion perks, limit ${rs.maxExhaustion}`); }
+  return out;
+}
+function teamIssues(survivors, rs, names) {
+  if (!rs || !rs.uniquePerTeam) return [];
+  const count = {};
+  survivors.forEach((v) => v.perks.filter(Boolean).forEach((p) => { count[p] = (count[p] || 0) + 1; }));
+  return Object.entries(count).filter(([, n]) => n > 1).map(([p, n]) => `${names[p] || p} used ${n} times`);
+}
+// A set is two games, one per team as killer. More hook stages wins; then more gens left; then more kills.
+function scoreSummary(score) {
+  const sets = [0, 0]; const history = [];
+  for (let i = 0; i + 1 < score.games.length; i += 2) {
+    const a = score.games[i]; const b = score.games[i + 1];
+    const cmp = (a.stages - b.stages) || (a.gensLeft - b.gensLeft) || (a.kills - b.kills);
+    const winner = cmp > 0 ? a.killerTeam : cmp < 0 ? b.killerTeam : null;
+    if (winner !== null) sets[winner] += 1;
+    history.push({ winner, games: [a, b] });
+  }
+  const need = Math.floor(score.bestOf / 2) + 1;
+  const champion = sets[0] >= need ? 0 : sets[1] >= need ? 1 : null;
+  return { sets, history, need, champion, pending: score.games.length % 2 === 1 ? score.games[score.games.length - 1] : null };
+}
+function statsSummary(matches) {
+  const row = () => ({ played: 0, wins: 0, losses: 0, draws: 0 });
+  const total = row(); const by = {};
+  for (const m of matches) {
+    const key = m.character || m.role;
+    for (const r of [total, (by[key] = by[key] || row())]) { r.played += 1; r[m.result === 'win' ? 'wins' : m.result === 'loss' ? 'losses' : 'draws'] += 1; }
+  }
+  const rate = (r) => (r.played ? Math.round((r.wins / r.played) * 100) : 0);
+  const list = Object.entries(by).map(([key, r]) => ({ key, ...r, rate: rate(r) })).sort((a, b) => b.rate - a.rate || b.played - a.played);
+  return { total: { ...total, rate: rate(total) }, by: list };
+}
+function derive(state, perks) {
+  const names = Object.fromEntries(perks.map((p) => [p.id, p.name]));
+  const rs = state.rulesets.list.find((r) => r.id === state.builds.rulesetId) || null;
+  return {
+    buildIssues: Object.fromEntries(state.builds.list.map((b) => [b.id, buildIssues(b.perks, rs, names)])),
+    lobbyIssues: [...state.lobby.survivors.flatMap((v) => buildIssues(v.perks, rs, names).map((x) => `${v.name}: ${x}`)), ...teamIssues(state.lobby.survivors, rs, names)],
+    ruleset: rs ? rs.name : null,
+    score: scoreSummary(state.score),
+    stats: statsSummary(state.stats.matches),
+  };
+}
+
 function dispatch(state, name, payload, ctx) {
   const fn = actions[name];
   if (!fn) return false;
@@ -151,4 +293,4 @@ function merge(base, saved) {
   return out;
 }
 
-module.exports = { defaultState, dispatch, merge, slotMs, OVERLAY_IDS, STREAK_RULES };
+module.exports = { defaultState, dispatch, merge, slotMs, derive, scoreSummary, statsSummary, buildIssues, teamIssues, OVERLAY_IDS, STREAK_RULES, CHALLENGE_PRESETS };

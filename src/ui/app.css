@@ -56,3 +56,15 @@ input[type="checkbox"] { accent-color: var(--moss); width: 16px; height: 16px; }
 .result { background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 kbd { font-family: var(--mono); font-size: 12px; background: var(--raised); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--bark); }
 .bad { color: var(--ember); }
+.pi { width: 44px; height: 44px; object-fit: contain; flex: none; display: inline-block; }
+.pi.sm { width: 26px; height: 26px; }
+.portrait { width: 72px; height: 72px; object-fit: cover; object-position: top; border-radius: 8px; background: var(--raised); flex: none; display: inline-block; }
+.portrait.sm { width: 28px; height: 28px; border-radius: 5px; }
+.card.sel { border-color: var(--moss); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.pick { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.good { color: var(--moss); margin: 0; }
+textarea { background: var(--ground); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; color: inherit; font: 12px var(--mono); width: 100%; resize: vertical; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--mute); font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }

@@ -7,11 +7,11 @@ const TOOLS = [
   { g: 'Play', id: 'perkShuffle', name: 'Perk Shuffle' },
   { g: 'Play', id: 'killerShuffle', name: 'Killer Shuffle' },
   { g: 'Compete', id: 'map', name: 'Map Callouts', soon: true },
-  { g: 'Compete', id: 'builds', name: 'Build Library', soon: true },
-  { g: 'Compete', id: 'score', name: 'Match Scoreboard', soon: true },
-  { g: 'Compete', id: 'lobby', name: 'Lobby Perks', soon: true },
-  { g: 'Compete', id: 'stats', name: 'Statistics', soon: true },
-  { g: 'Compete', id: 'challenges', name: 'Challenges', soon: true },
+  { g: 'Compete', id: 'builds', name: 'Build Library' },
+  { g: 'Compete', id: 'score', name: 'Match Scoreboard' },
+  { g: 'Compete', id: 'lobby', name: 'Lobby Perks' },
+  { g: 'Compete', id: 'stats', name: 'Statistics' },
+  { g: 'Compete', id: 'challenge', name: 'Challenges' },
   { g: 'App', id: 'settings', name: 'Hotkeys' },
 ];
 const HOTKEY_LABELS = {
@@ -28,6 +28,7 @@ const B = (action, field, extra) => `data-set="${action}" data-field="${field}" 
 const fmt = (ms) => { const s = Math.abs(ms) / 1000; return (ms < 0 ? '-' : '') + Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0'); };
 const slotMs = (x) => x.base + (x.startedAt ? Date.now() - x.startedAt : 0);
 const key = (action) => (S.hotkeys[action] ? `<kbd>${esc(S.hotkeys[action])}</kbd>` : '');
+const art = (kind, id, cls) => (id && D.art[kind].includes(id) ? `<img class="${cls}" src="http://127.0.0.1:${D.port}/art/${kind}/${id}.png" alt="" loading="lazy">` : `<span class="${cls}"></span>`);
 const opt = (v, label, sel) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${label}</option>`;
 
 function overlayCard(id) {
@@ -107,7 +108,7 @@ const VIEWS = {
   },
   perkShuffle() {
     const ps = S.perkShuffle; const name = (id) => (D.perks.find((p) => p.id === id) || {}).name;
-    const res = ps.result.map((id, i) => `<div class="result"><span>${id ? esc(name(id)) : '<span class="note">empty</span>'}</span>
+    const res = ps.result.map((id, i) => `<div class="result"><span class="row">${art('perks', id, 'pi')}${id ? esc(name(id)) : '<span class="note">empty</span>'}</span>
       <label class="note"><input type="checkbox" ${ps.locked[i] ? 'checked' : ''} data-lock="${i}"> keep</label></div>`).join('');
     const pool = D.perks.filter((p) => p.role === ps.role);
     return ['Perk Shuffle', 'Random loadout of four perks.', `<div class="card"><h2>Loadout</h2>
@@ -115,18 +116,18 @@ const VIEWS = {
         <button class="btn pri" ${A('perkShuffle.roll')}>Shuffle ${key('perkShuffle.roll')}</button></div>
       <div class="list">${res}</div></div>
       <div class="card"><h2>Perk pool: ${pool.length - ps.excluded.filter((x) => pool.some((p) => p.id === x)).length} of ${pool.length}</h2>
-      <div class="checks">${pool.map((p) => `<label><input type="checkbox" ${ps.excluded.includes(p.id) ? '' : 'checked'} data-pool="perkShuffle" value="${p.id}">${esc(p.name)}</label>`).join('')}</div></div>`];
+      <div class="checks">${pool.map((p) => `<label><input type="checkbox" ${ps.excluded.includes(p.id) ? '' : 'checked'} data-pool="perkShuffle" value="${p.id}">${art('perks', p.id, 'pi sm')}${esc(p.name)}</label>`).join('')}</div></div>`];
   },
   killerShuffle() {
     const ks = S.killerShuffle; const all = D.characters.filter((c) => c.role === 'killer');
     const name = (id) => (all.find((c) => c.id === id) || {}).name;
     return ['Killer Shuffle', 'Random killer from your roster.', `<div class="card"><h2>Pick</h2>
-      <div class="result"><span class="mid">${ks.result ? esc(name(ks.result)) : '...'}</span></div>
+      <div class="result"><span class="row">${art('portraits', ks.result, 'portrait')}<span class="mid">${ks.result ? esc(name(ks.result)) : '...'}</span></span></div>
       <div class="row"><button class="btn pri" ${A('killerShuffle.roll')}>Pick killer ${key('killerShuffle.roll')}</button>
         <label><input type="checkbox" ${ks.noRepeat ? 'checked' : ''} ${B('killerShuffle.set', 'noRepeat')}> No repeats until all are played</label>
         ${ks.noRepeat ? `<span class="note">${ks.played.length} of ${all.length - ks.excluded.length} played</span><button class="btn sm" ${A('killerShuffle.resetPlayed')}>Restart cycle</button>` : ''}</div></div>
       <div class="card"><h2>Roster: ${all.length - ks.excluded.length} of ${all.length}</h2>
-      <div class="checks">${all.map((c) => `<label><input type="checkbox" ${ks.excluded.includes(c.id) ? '' : 'checked'} data-pool="killerShuffle" value="${c.id}">${esc(c.name)}</label>`).join('')}</div></div>`];
+      <div class="checks">${all.map((c) => `<label><input type="checkbox" ${ks.excluded.includes(c.id) ? '' : 'checked'} data-pool="killerShuffle" value="${c.id}">${art('portraits', c.id, 'portrait sm')}${esc(c.name)}</label>`).join('')}</div></div>`];
   },
   settings() {
     const rows = Object.entries(HOTKEY_LABELS).map(([a, label]) => `<div class="result"><span>${label}</span>
@@ -149,7 +150,7 @@ function rail() {
 }
 function panel(force) {
   const el = document.activeElement;
-  if (!force && el && $('#panel').contains(el) && /INPUT|SELECT/.test(el.tagName) && el.type !== 'checkbox') return; // do not interrupt editing
+  if (!force && el && $('#panel').contains(el) && /INPUT|SELECT|TEXTAREA/.test(el.tagName) && el.type !== 'checkbox') return; // do not interrupt editing
   const [title, sub, body] = VIEWS[cur]();
   const scroll = $('#panel').scrollTop;
   const frame = $('#panel iframe');
@@ -166,6 +167,8 @@ document.addEventListener('click', (e) => {
   if (tool) { cur = tool.dataset.tool; rail(); panel(true); return; }
   const copy = e.target.closest('[data-copy]');
   if (copy) { api.copy(copy.dataset.copy); copy.textContent = 'Copied'; return; }
+  const form = e.target.closest('[data-form]');
+  if (form) { FORMS[form.dataset.form](); return; }
   const act = e.target.closest('[data-act]');
   if (act) api.act(act.dataset.act, JSON.parse(act.dataset.p));
 });
@@ -177,6 +180,9 @@ function onInput(e) {
     api.act(t.dataset.set, { ...JSON.parse(t.dataset.p), [t.dataset.field]: val });
   } else if (e.type !== 'change') {
     return;
+  } else if (t.dataset.pick) {
+    const d = JSON.parse(t.dataset.pick); const hit = D.perks.find((p) => p.name.toLowerCase() === String(val).trim().toLowerCase());
+    api.act(d.act, { ...d.p, perk: hit ? hit.id : null });
   } else if (t.dataset.label) {
     const labels = [...S.timer.labels]; labels[Number(t.dataset.label)] = val; api.act('timer.set', { labels });
   } else if (t.dataset.lock) {
@@ -196,4 +202,117 @@ setInterval(() => { if (cur === 'timer' && S) document.querySelectorAll('[data-s
 api.init().then((init) => {
   D = init; S = init.state; rail(); panel(true);
   api.onState((s) => { S = s; rail(); panel(false); });
+});
+
+// ---- phase 3 views
+const pname = (id) => (D.perks.find((p) => p.id === id) || {}).name || '';
+const cname = (id) => (D.characters.find((c) => c.id === id) || {}).name || '';
+const pick = (act, p, value, role) => `<div class="pick">${art('perks', value, 'pi')}<input type="text" list="dl-${role}" placeholder="Perk name" aria-label="Perk" value="${esc(pname(value))}" data-pick='${esc(JSON.stringify({ act, p }))}'></div>`;
+const lists = () => ['survivor', 'killer'].map((r) => `<datalist id="dl-${r}">${D.perks.filter((p) => p.role === r).map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`).join('');
+const charOpts = (role, sel) => opt('', role === 'killer' ? 'Any killer' : 'Any', sel || '') + D.characters.filter((c) => c.role === role).map((c) => opt(c.id, esc(c.name), sel)).join('');
+const issuesHtml = (list, rs) => (!rs ? '<span class="note">No ruleset selected</span>' : list.length ? list.map((x) => `<span class="bad">${esc(x)}</span>`).join('<br>') : `<span class="good">Legal under ${esc(rs)}</span>`);
+const val = (id) => ($('#' + id) ? $('#' + id).value : '');
+const FORMS = {
+  rules() { api.act('rules.import', { json: val('rs-json') }); },
+  rule() { api.act('challenge.addRule', { text: val('ch-rule') }); panel(true); },
+  stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills') }); },
+  export() { api.copy(JSON.stringify(S.stats.matches)); },
+};
+
+Object.assign(VIEWS, {
+  builds() {
+    const b = S.builds; const rs = S.rulesets.list.find((r) => r.id === b.rulesetId);
+    const cards = b.list.map((x) => `<div class="card ${x.id === b.activeId ? 'sel' : ''}">
+      <div class="row"><input type="text" style="flex:1;width:auto" aria-label="Build name" value="${esc(x.name)}" ${B('builds.update', 'name', { id: x.id })}>
+        <select style="width:auto" aria-label="Role" ${B('builds.update', 'role', { id: x.id })}>${opt('survivor', 'Survivor', x.role)}${opt('killer', 'Killer', x.role)}</select>
+        ${x.role === 'killer' ? `<select style="width:auto" aria-label="Killer" ${B('builds.update', 'killer', { id: x.id })}>${charOpts('killer', x.killer)}</select>` : ''}</div>
+      <div class="grid2">${x.perks.map((p, i) => pick('builds.setPerk', { id: x.id, slot: i }, p, x.role)).join('')}</div>
+      <div class="row"><input type="text" style="flex:1;width:auto" placeholder="Tags: map, league, opponent" aria-label="Tags" value="${esc(x.tags)}" ${B('builds.update', 'tags', { id: x.id })}></div>
+      <div>${issuesHtml(S.derived.buildIssues[x.id] || [], S.derived.ruleset)}</div>
+      <div class="row"><button class="btn sm ${x.id === b.activeId ? '' : 'pri'}" ${A('builds.set', { activeId: x.id })}>${x.id === b.activeId ? 'On overlay' : 'Show on overlay'}</button>
+        <button class="btn sm warn" ${A('builds.remove', { id: x.id })}>Delete</button></div></div>`).join('');
+    const bans = rs ? `<label class="field"><span>Name</span><input type="text" value="${esc(rs.name)}" ${B('rules.update', 'name', { id: rs.id })}></label>
+        <div class="row"><label><input type="checkbox" ${rs.uniquePerTeam ? 'checked' : ''} ${B('rules.update', 'uniquePerTeam', { id: rs.id })}> One copy of each perk per team</label>
+        <label class="row">Exhaustion perk limit <input type="number" min="0" max="4" value="${rs.maxExhaustion}" ${B('rules.update', 'maxExhaustion', { id: rs.id })}></label>
+        <button class="btn sm warn" ${A('rules.remove', { id: rs.id })}>Delete ruleset</button></div>
+      <p class="note">Banned perks: ${rs.banned.length}. Zero for the exhaustion limit means no limit.</p>
+      <div class="checks">${D.perks.map((p) => `<label><input type="checkbox" ${rs.banned.includes(p.id) ? 'checked' : ''} data-ban="${rs.id}" value="${p.id}">${art('perks', p.id, 'pi sm')}${esc(p.name)}</label>`).join('')}</div>` : '';
+    return ['Build Library', 'Saved builds, checked against a league ruleset.', `${lists()}
+      <div class="row"><button class="btn pri" ${A('builds.add', { role: 'survivor' })}>New survivor build</button><button class="btn" ${A('builds.add', { role: 'killer' })}>New killer build</button></div>
+      ${cards || '<p class="note">No builds yet.</p>'}
+      <div class="card"><h2>Ruleset</h2>
+        <div class="row"><select style="width:auto" aria-label="Active ruleset" ${B('builds.set', 'rulesetId')}>${opt('', 'None', b.rulesetId || '')}${S.rulesets.list.map((r) => opt(r.id, esc(r.name), b.rulesetId)).join('')}</select>
+          <button class="btn" ${A('rules.add')}>New ruleset</button></div>
+        ${bans}
+        <div class="field"><span>Import ruleset (JSON): {"name": "...", "banned": ["Perk name"], "uniquePerTeam": true, "maxExhaustion": 1}</span>
+          <textarea id="rs-json" rows="3"></textarea></div>
+        <div class="row"><button class="btn" data-form="rules">Import</button></div></div>`];
+  },
+  lobby() {
+    const rows = S.lobby.survivors.map((v, i) => `<div class="card">
+      <div class="row"><input type="text" style="flex:1;width:auto" aria-label="Survivor name" value="${esc(v.name)}" data-lobbyname="${i}">
+        <select style="width:auto" aria-label="Load build" data-lobbybuild="${i}">${opt('', 'Load build...', '')}${S.builds.list.filter((b) => b.role === 'survivor').map((b) => opt(b.id, esc(b.name), '')).join('')}</select></div>
+      <div class="grid2">${v.perks.map((p, s) => pick('lobby.setPerk', { i, slot: s }, p, 'survivor')).join('')}</div></div>`).join('');
+    return ['Lobby Perks', 'The four survivors\' perks, for stream or scrim review.', `${lists()}${rows}
+      <div class="card"><h2>Team check</h2><div>${issuesHtml(S.derived.lobbyIssues, S.derived.ruleset)}</div>
+        <div class="row"><button class="btn warn" ${A('lobby.clear')}>Clear all</button></div>
+        <p class="note">The ruleset is chosen in Build Library. Entry is manual in this version.</p></div>`];
+  },
+  score() {
+    const sc = S.score; const c = sc.current; const d = S.derived.score;
+    const bump = (f, label, max) => `<div class="slot"><span class="note">${label}</span><span class="big">${c[f]}<span class="note"> / ${max}</span></span>
+      <div class="row"><button class="btn sm" ${A('score.bump', { field: f, delta: -1 })}>−</button><button class="btn sm pri" ${A('score.bump', { field: f, delta: 1 })}>+</button></div></div>`;
+    const hist = d.history.map((h, i) => `<tr><td>Set ${i + 1}</td>${h.games.map((g) => `<td>${esc(sc.teams[g.killerTeam])} as ${esc(cname(g.killer) || 'killer')}: ${g.stages} stages, ${g.gensLeft} gens left, ${g.kills} kills</td>`).join('')}<td>${h.winner === null ? 'Tie' : esc(sc.teams[h.winner])}</td></tr>`).join('');
+    return ['Match Scoreboard', 'Broadcast scoreboard. A set is two games, one per team as killer. More hook stages wins, then more gens left, then more kills.', `<div class="card"><h2>Match</h2>
+        <div class="row"><input type="text" style="width:170px" aria-label="Team 1" value="${esc(sc.teams[0])}" data-team="0"><span class="big">${d.sets[0]} : ${d.sets[1]}</span><input type="text" style="width:170px" aria-label="Team 2" value="${esc(sc.teams[1])}" data-team="1">
+          <label class="row">Best of <select style="width:auto" ${B('score.set', 'bestOf')}>${[1, 3, 5, 7, 9].map((n) => opt(n, n, sc.bestOf)).join('')}</select></label></div>
+        ${d.champion !== null ? `<p class="good">Winner: ${esc(sc.teams[d.champion])}</p>` : ''}</div>
+      <div class="card"><h2>Current game</h2>
+        <div class="row"><label class="row">Killer side <select style="width:auto" data-killerteam>${opt(0, esc(sc.teams[0]), c.killerTeam)}${opt(1, esc(sc.teams[1]), c.killerTeam)}</select></label>
+          <select style="width:auto" aria-label="Killer" ${B('score.current', 'killer')}>${charOpts('killer', c.killer)}</select>
+          ${d.pending ? `<span class="note">To beat: ${d.pending.stages} stages, ${d.pending.gensLeft} gens left</span>` : ''}</div>
+        <div class="row">${bump('stages', 'Hook stages', 12)}${bump('gensLeft', 'Gens left', 5)}${bump('kills', 'Kills', 4)}</div>
+        <div class="row"><button class="btn pri" ${A('score.endGame')}>End game</button><button class="btn" ${A('score.undoGame')}>Undo last game</button><button class="btn warn" ${A('score.reset')}>Reset match</button></div>
+        <p class="note">A dead survivor counts as 3 stages. Enter stages by hand in this version.</p></div>
+      ${hist ? `<div class="card"><h2>Sets</h2><table>${hist}</table></div>` : ''}`];
+  },
+  stats() {
+    const d = S.derived.stats; const role = S._statRole || 'killer';
+    const rows = d.by.map((r) => `<tr><td><span class="row">${art('portraits', r.key, 'portrait sm')}${esc(cname(r.key) || r.key)}</span></td><td>${r.played}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.draws}</td><td>${r.rate}%</td></tr>`).join('');
+    const recent = S.stats.matches.slice(-8).reverse().map((m) => `<tr><td>${new Date(m.ts).toLocaleDateString()}</td><td>${esc(cname(m.character) || m.role)}</td><td>${esc(m.map)}</td><td>${m.result}</td><td>${m.stages}</td><td>${m.gensLeft}</td><td>${m.kills}</td><td><button class="btn sm warn" ${A('stats.remove', { ts: m.ts })} aria-label="Remove match">✕</button></td></tr>`).join('');
+    return ['Statistics', 'Local match log. Stored on this computer only.', `<div class="card"><h2>Add match</h2>
+        <div class="grid"><label class="field"><span>Role</span><select id="st-role">${opt('killer', 'Killer', role)}${opt('survivor', 'Survivor', role)}</select></label>
+          <label class="field"><span>Character</span><select id="st-char">${opt('', 'Not set', '')}${D.characters.map((c) => opt(c.id, esc(c.name), '')).join('')}</select></label>
+          <label class="field"><span>Map</span><input type="text" id="st-map"></label>
+          <label class="field"><span>Result</span><select id="st-result">${opt('win', 'Win', 'win')}${opt('loss', 'Loss', '')}${opt('draw', 'Draw', '')}</select></label>
+          <label class="field"><span>Hook stages</span><input type="number" id="st-stages" min="0" max="12" value="0"></label>
+          <label class="field"><span>Gens left</span><input type="number" id="st-gens" min="0" max="5" value="0"></label>
+          <label class="field"><span>Kills</span><input type="number" id="st-kills" min="0" max="4" value="0"></label></div>
+        <div class="row"><button class="btn pri" data-form="stats">Add match</button><button class="btn" data-form="export">Copy all as JSON</button></div></div>
+      <div class="card"><h2>Record: ${d.total.wins} W, ${d.total.losses} L, ${d.total.draws} D (${d.total.rate}%)</h2>
+        ${rows ? `<table><tr><th>Character</th><th>Played</th><th>W</th><th>L</th><th>D</th><th>Win rate</th></tr>${rows}</table>` : '<p class="note">No matches logged.</p>'}</div>
+      ${recent ? `<div class="card"><h2>Recent</h2><table><tr><th>Date</th><th>Character</th><th>Map</th><th>Result</th><th>Stages</th><th>Gens</th><th>Kills</th><th></th></tr>${recent}</table></div>` : ''}`];
+  },
+  challenge() {
+    const c = S.challenge;
+    return ['Challenges', 'Long runs with rules that stack across matches.', `<div class="card"><h2>Run</h2>
+        <div class="row"><input type="text" style="flex:1;width:auto" aria-label="Challenge name" value="${esc(c.name)}" ${B('challenge.set', 'name')}>
+          <label class="row">Target wins <input type="number" min="0" max="999" value="${c.target}" ${B('challenge.set', 'target')}></label></div>
+        <div class="row"><div class="slot active"><span class="note">Wins</span><span class="big">${c.wins}</span></div><div class="slot"><span class="note">Played</span><span class="big">${c.played}</span></div></div>
+        <div class="row"><button class="btn pri" ${A('challenge.result', { win: true })}>Win</button><button class="btn warn" ${A('challenge.result', { win: false })}>Loss</button><button class="btn" ${A('challenge.reset')}>Reset progress</button></div></div>
+      <div class="card"><h2>Rules</h2>
+        <div class="list">${c.rules.map((r, i) => `<div class="result"><span>${esc(r)}</span><button class="btn sm warn" ${A('challenge.removeRule', { i })} aria-label="Remove rule">✕</button></div>`).join('') || '<p class="note">No rules.</p>'}</div>
+        <div class="row"><input type="text" id="ch-rule" style="flex:1;width:auto" placeholder="New rule" aria-label="New rule"><button class="btn" data-form="rule">Add rule</button></div>
+        <div class="row"><span class="note">Presets</span>${Object.entries(D.presets).map(([id, p]) => `<button class="btn sm" ${A('challenge.preset', { id })}>${esc(p.name)}</button>`).join('')}</div></div>`];
+  },
+});
+
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.dataset.ban) api.act('rules.toggleBan', { id: t.dataset.ban, perk: t.value });
+  else if (t.dataset.lobbyname) api.act('lobby.setName', { i: Number(t.dataset.lobbyname), name: t.value });
+  else if (t.dataset.lobbybuild && t.value) { api.act('lobby.loadBuild', { i: Number(t.dataset.lobbybuild), id: t.value }); t.blur(); }
+  else if (t.dataset.team) { const teams = [...S.score.teams]; teams[Number(t.dataset.team)] = t.value; api.act('score.set', { teams }); }
+  else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
+  else if (t.id === 'st-role') S._statRole = t.value;
 });

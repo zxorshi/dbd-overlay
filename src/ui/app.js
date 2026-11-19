@@ -168,7 +168,12 @@ const VIEWS = {
         <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
         <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
         <label><input type="checkbox" ${S.settings.closeToTray ? 'checked' : ''} ${B('settings.set', 'closeToTray')}> Closing the window keeps the app running in the tray</label>
-        <label><input type="checkbox" ${S.settings.overlaysHidden ? 'checked' : ''} ${B('settings.set', 'overlaysHidden')}> Hide all overlays ${key('overlays.toggleAll')}</label></div>`];
+        <label><input type="checkbox" ${S.settings.overlaysHidden ? 'checked' : ''} ${B('settings.set', 'overlaysHidden')}> Hide all overlays ${key('overlays.toggleAll')}</label></div>
+      <div class="card"><h2>Backup</h2>
+        <p class="note">Builds, rulesets, stats, streaks, layouts and hotkeys. Use it to move to another computer or share a setup.</p>
+        <div class="row"><button class="btn" data-form="backup">Copy backup to clipboard</button></div>
+        <textarea id="bk-json" rows="2" placeholder="Paste a backup here" aria-label="Backup text"></textarea>
+        <div class="row"><button class="btn warn" data-form="restore">Restore (replaces current data)</button>${backupMsg ? `<span class="note">${esc(backupMsg)}</span>` : ''}</div></div>`];
   },
 };
 
@@ -248,7 +253,10 @@ const charOpts = (role, sel) => opt('', role === 'killer' ? 'Any killer' : 'Any'
 const issuesHtml = (list, rs) => (!rs ? '<span class="note">No ruleset selected</span>' : list.length ? list.map((x) => `<span class="bad">${esc(x)}</span>`).join('<br>') : `<span class="good">Legal under ${esc(rs)}</span>`);
 const val = (id) => ($('#' + id) ? $('#' + id).value : '');
 const LEAGUES = { list: null, msg: '', bad: false };
+let backupMsg = '';
 const FORMS = {
+  backup() { const { derived, calloutIds, gameRunning, hotkeysFailed, passthroughAvailable, ...rest } = S; api.copy(JSON.stringify(rest)); backupMsg = 'Copied to clipboard. Paste it into a text file to keep it.'; panel(true); },
+  async restore() { const r = await api.restore(val('bk-json')); backupMsg = r.error ? 'Restore failed: ' + r.error : 'Restored.'; panel(true); },
   preset() { const p = D.timerPresets[Number(val('pt-preset'))]; if (p) api.act('perks.add', p); },
   async leagues() { LEAGUES.msg = 'Loading'; panel(true); const r = await api.leagues(); LEAGUES.list = r.list || null; LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Could not load: ' + r.error : ''; panel(true); },
   async league() { const p = val('lg-preset'); LEAGUES.msg = 'Importing'; panel(true); const r = await api.importLeague(p); LEAGUES.bad = Boolean(r.error); LEAGUES.msg = r.error ? 'Import failed: ' + r.error : 'Imported'; panel(true); },

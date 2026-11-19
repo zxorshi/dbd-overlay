@@ -88,7 +88,13 @@ async function grabScreen([x, y, w, h]) {
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
   const img = sources[0] && sources[0].thumbnail; if (!img || img.isEmpty()) return null;
   const s = img.getSize();
-  return img.crop({ x: Math.round(x * s.width), y: Math.round(y * s.height), width: Math.round(w * s.width), height: Math.round(h * s.height) }).toPNG();
+  const cut = img.crop({ x: Math.round(x * s.width), y: Math.round(y * s.height), width: Math.round(w * s.width), height: Math.round(h * s.height) });
+  // OCR reads dark text on a light ground best. Game text is light on dark: grayscale, and invert dark frames.
+  const dim = cut.getSize(); const px = cut.toBitmap(); let sum = 0;
+  for (let i = 0; i < px.length; i += 4) { const g = (px[i] * 29 + px[i + 1] * 150 + px[i + 2] * 77) >> 8; px[i] = g; sum += g; }
+  const invert = sum / (px.length / 4) < 110;
+  for (let i = 0; i < px.length; i += 4) { const g = invert ? 255 - px[i] : px[i]; px[i] = g; px[i + 1] = g; px[i + 2] = g; px[i + 3] = 255; }
+  return nativeImage.createFromBitmap(px, { width: dim.width, height: dim.height }).toPNG();
 }
 
 // Is the game running? Process list only (tasklist); the game process itself is never opened.
@@ -268,6 +274,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('leagues.list', async () => { try { return { list: await leagues.listPresets() }; } catch (e) { return { error: String(e.message || e) }; } });
   ipcMain.handle('leagues.import', async (_e, presetPath) => {
     try { act('rules.addImported', { ruleset: await leagues.importPreset(String(presetPath), perks, characters) }); return {}; } catch (e) { return { error: String(e.message || e) }; }
+  });
+  ipcMain.handle('restore', (_e, json) => {
+    try {
+      const d = JSON.parse(String(json)); if (!d || typeof d !== 'object' || !d.overlays || !d.timer) throw new Error('This is not a DBD Overlay backup');
+      for (const k of ['derived', 'calloutIds', 'gameRunning', 'hotkeysFailed', 'passthroughAvailable']) delete d[k];
+      state = merge(defaultState(), d); registerHotkeys(); syncOverlayWindows(); syncDetector(); broadcast(); save(); return {};
+    } catch (e) { return { error: String(e.message || e) }; }
   });
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 

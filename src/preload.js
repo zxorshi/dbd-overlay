@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   detect: () => ipcRenderer.send('detect'),
   leagues: () => ipcRenderer.invoke('leagues.list'),
   importLeague: (p) => ipcRenderer.invoke('leagues.import', p),
+  restore: (json) => ipcRenderer.invoke('restore', json),
   copy: (text) => ipcRenderer.send('copy', text),
   onState: (fn) => ipcRenderer.on('state', (_e, s) => fn(s)),
 });

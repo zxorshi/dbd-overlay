@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   importLeague: (p) => ipcRenderer.invoke('leagues.import', p),
   restore: (json) => ipcRenderer.invoke('restore', json),
   suspendHotkeys: (on) => ipcRenderer.send('hotkeys.suspend', on),
+  snap: (id, where) => ipcRenderer.send('overlay.snap', id, where),
   copy: (text) => ipcRenderer.send('copy', text),
   onState: (fn) => ipcRenderer.on('state', (_e, s) => fn(s)),
 });

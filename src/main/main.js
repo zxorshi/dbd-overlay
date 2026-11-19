@@ -184,7 +184,7 @@ function syncOverlayWindows() {
         x: o.x, y: o.y, width: o.w, height: o.h, show: false,
         frame: false, transparent: true, resizable: false, skipTaskbar: true, hasShadow: false,
         alwaysOnTop: true, focusable: false, fullscreenable: false, minWidth: 60, minHeight: 40,
-        webPreferences: { contextIsolation: true },
+        webPreferences: { contextIsolation: true, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
       });
       win.setAlwaysOnTop(true, 'screen-saver');
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -324,6 +324,17 @@ app.whenReady().then(async () => {
     } catch (e) { return { error: String(e.message || e) }; }
   });
   ipcMain.on('hotkeys.suspend', (_e, on) => { if (on) hooks.stop(); else registerHotkeys(); });
+  // Snap an overlay to a screen corner or edge of the primary display.
+  ipcMain.on('overlay.snap', (_e, id, where) => {
+    const o = state.overlays[id]; if (!o) return;
+    const wa = screen.getPrimaryDisplay().workArea; const win = overlayWins.get(id);
+    const b = win && !win.isDestroyed() ? win.getBounds() : { width: o.w, height: o.h };
+    const pad = 16; const [v, h] = String(where).split('-');
+    o.x = Math.round(h === 'left' ? wa.x + pad : h === 'right' ? wa.x + wa.width - b.width - pad : wa.x + (wa.width - b.width) / 2);
+    o.y = Math.round(v === 'top' ? wa.y + pad : v === 'bottom' ? wa.y + wa.height - b.height - pad : wa.y + (wa.height - b.height) / 2);
+    if (win && !win.isDestroyed()) win.setBounds({ x: o.x, y: o.y, width: b.width, height: b.height });
+    save();
+  });
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
   mainWin = new BrowserWindow({

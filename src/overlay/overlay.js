@@ -61,20 +61,23 @@ const render = {
 // A short tone when a perk timer ends. App window only, so OBS does not record it twice.
 const played = new Set();
 let audio = null;
-function beep(freq) {
+function beep(freq, len = 0.5) {
   try {
     audio = audio || new AudioContext();
     const o = audio.createOscillator(); const g = audio.createGain();
     o.frequency.value = freq; o.connect(g); g.connect(audio.destination);
-    g.gain.setValueAtTime(0.2, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.5);
-    o.start(); o.stop(audio.currentTime + 0.5);
+    g.gain.setValueAtTime(0.2, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + len);
+    o.start(); o.stop(audio.currentTime + len);
   } catch { /* no audio device */ }
 }
 function sounds() {
   if (!isWindow || id !== 'perks') return;
+  const now = Date.now();
   for (const p of state.perks.list) {
-    const key = p.id + ':' + p.endsAt;
-    if (p.endsAt && Date.now() >= p.endsAt && !played.has(key)) { played.add(key); if (Date.now() - p.endsAt < 1000) beep(p.tone); }
+    if (!p.endsAt) continue;
+    const end = p.id + ':' + p.endsAt; const warn = 'w' + end; const w = state.perks.warnAt * 1000;
+    if (w > 0 && now >= p.endsAt - w && now < p.endsAt && !played.has(warn)) { played.add(warn); if (p.endsAt - now > w - 1000) beep(p.tone * 1.5, 0.12); }
+    if (now >= p.endsAt && !played.has(end)) { played.add(end); if (now - p.endsAt < 1000) beep(p.tone); }
   }
 }
 
@@ -83,6 +86,7 @@ function draw() {
   const o = state.overlays[id];
   document.documentElement.style.setProperty('--c', o.color);
   document.documentElement.style.setProperty('--scale', o.scale);
+  document.documentElement.style.setProperty('--plate', `rgba(12, 18, 14, ${o.bg ?? 0.72})`);
   document.body.classList.toggle('unlocked', isWindow && !o.locked && id !== 'crosshair');
   document.getElementById('frame').dataset.name = id;
   if (!isWindow) document.body.style.opacity = o.opacity;

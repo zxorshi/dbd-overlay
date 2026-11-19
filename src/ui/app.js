@@ -63,7 +63,9 @@ function overlayCard(id) {
       <label for="oc">Color</label><input id="oc" type="color" value="${o.color}" ${B('overlay.set', 'color', { id })}>
       <label for="os">Size</label><input id="os" type="range" min="0.5" max="2.5" step="0.05" value="${o.scale}" ${B('overlay.set', 'scale', { id })}>
       <label for="oo">Opacity</label><input id="oo" type="range" min="0.2" max="1" step="0.05" value="${o.opacity}" ${B('overlay.set', 'opacity', { id })}>
+      ${id === 'crosshair' ? '' : `<label for="ob">Background</label><input id="ob" type="range" min="0" max="1" step="0.04" value="${o.bg ?? 0.72}" ${B('overlay.set', 'bg', { id })}>`}
     </div>
+    ${id === 'crosshair' ? '' : `<div class="row"><span class="note">Place at</span><span class="snap">${['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'].map((w) => `<button class="btn sm" data-snap="${w}" data-id="${id}" title="${w.replace('-', ' ')}" aria-label="Place ${w.replace('-', ' ')}"></button>`).join('')}</span></div>`}
     <div class="row"><span class="note">Show / hide key</span>${bindBtn('overlay.toggle:' + id)}</div>
     <div class="field"><span>OBS browser source URL</span>
       <div class="row"><span class="url">${url}</span><button class="btn sm" data-copy="${url}">Copy</button></div></div>
@@ -125,6 +127,8 @@ const VIEWS = {
       <div class="row"><button class="btn pri" ${A('perks.fireAll')}>Fire all armed ${key('perks.fireAll')}</button>
         <button class="btn" ${A('perks.clear')}>Clear ${key('perks.clear')}</button></div>
       <div class="row"><select id="pt-preset" style="width:auto" aria-label="Timer preset">${D.timerPresets.map((p, i) => opt(i, `${esc(p.name)} (${p.seconds} s)`, -1)).join('')}</select><button class="btn" data-form="preset">Add preset</button><button class="btn" ${A('perks.add')}>Add empty timer</button></div>
+      <div class="row"><label class="row">Warning tone <input type="number" min="0" max="30" value="${S.perks.warnAt}" ${B('perks.set', 'warnAt')}> s before the end (0 = off)</label></div>
+      <p class="note">Tones play from the overlay window, so the overlay must be shown to hear them.</p>
       <p class="note">Default durations come from community data and may not match the current patch. Edit them here. Timers start by hotkey only; nothing is read from the game.</p></div>`];
   },
   streak() {
@@ -228,6 +232,8 @@ document.addEventListener('click', (e) => {
   if (bind) { capturing = capturing === bind.dataset.bind ? null : bind.dataset.bind; api.suspendHotkeys(Boolean(capturing)); panel(true); return; }
   const tool = e.target.closest('[data-tool]');
   if (tool) { cur = tool.dataset.tool; rail(); panel(true); return; }
+  const snap = e.target.closest('[data-snap]');
+  if (snap) { api.snap(snap.dataset.id, snap.dataset.snap); return; }
   const copy = e.target.closest('[data-copy]');
   if (copy) { api.copy(copy.dataset.copy); copy.textContent = 'Copied'; return; }
   const form = e.target.closest('[data-form]');

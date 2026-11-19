@@ -6,7 +6,7 @@ const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'ki
 const SIZES = { map: [420, 440], lobby: [380, 260], score: [900, 120], builds: [420, 150], stats: [520, 110], challenge: [380, 200], perkShuffle: [400, 150], perks: [300, 200] };
 const overlayDefaults = (i, id) => ({
   open: false, locked: false, x: 80 + i * 30, y: 80 + i * 30, w: (SIZES[id] || [360])[0], h: (SIZES[id] || [0, 140])[1],
-  color: '#d7e3c5', scale: 1, opacity: 1,
+  color: '#d7e3c5', scale: 1, opacity: 1, bg: 0.72,
 });
 
 const newGame = (killerTeam) => ({ killerTeam, killer: null, stages: 0, gensLeft: 5, kills: 0, hooks: [0, 0, 0, 0] });
@@ -36,6 +36,7 @@ function defaultState() {
     },
     crosshair: { shape: 'cross', size: 24, thickness: 2, gap: 4, dot: false, outline: true, offsetX: 0, offsetY: 0, profiles: [], profile: null },
     perks: {
+      warnAt: 3, // seconds before the end for a short warning tone; 0 turns it off
       // Durations are defaults taken from community data. Editable. Check against the current patch.
       list: [
         { id: 'endurance', name: 'Unhook Endurance', seconds: 10, armed: true, tone: 440, endsAt: null },
@@ -161,6 +162,7 @@ const actions = {
   // ---- perk timers
   'perks.fireAll'(s, _p, { now }) { s.perks.list.forEach((p) => { if (p.armed) p.endsAt = now + p.seconds * 1000; }); },
   'perks.fire'(s, { id }, { now }) { const p = s.perks.list.find((x) => x.id === id); if (p) p.endsAt = now + p.seconds * 1000; },
+  'perks.set'(s, f) { if ('warnAt' in f) f.warnAt = clamp(Number(f.warnAt) || 0, 0, 30); Object.assign(s.perks, f); },
   'perks.clear'(s) { s.perks.list.forEach((p) => { p.endsAt = null; }); },
   'perks.update'(s, { id, ...fields }) {
     if ('seconds' in fields) fields.seconds = clamp(Number(fields.seconds) || 1, 1, 3600);

@@ -74,3 +74,6 @@ th { color: var(--mute); font-weight: 600; font-size: 11px; letter-spacing: 0.08
 .slot.dead { opacity: 0.55; }
 .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 6px; }
 .keys .result { padding: 5px 10px; font-size: 13px; }
+.icons { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px; }
+details summary { cursor: pointer; color: var(--mute); font-size: 13px; }
+td input[type=range] { width: 110px; }

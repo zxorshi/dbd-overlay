@@ -1,5 +1,6 @@
 // Main window. Renders the active tool from state; sends actions to the main process.
 const TOOLS = [
+  { g: 'Home', id: 'home', name: 'Overlays' },
   { g: 'Play', id: 'timer', name: '1v1 Timer' },
   { g: 'Play', id: 'crosshair', name: 'Crosshair' },
   { g: 'Play', id: 'perks', name: 'Perk Timers' },
@@ -24,7 +25,7 @@ const HOTKEY_LABELS = {
   'score.hook:0': 'Scoreboard: hook survivor 1', 'score.hook:1': 'Scoreboard: hook survivor 2', 'score.hook:2': 'Scoreboard: hook survivor 3', 'score.hook:3': 'Scoreboard: hook survivor 4', 'score.bump:gen': 'Scoreboard: generator done', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
 };
 
-let S = null; let D = null; let cur = 'timer';
+let S = null; let D = null; let cur = 'home';
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const A = (name, payload) => `data-act="${name}" data-p='${esc(JSON.stringify(payload || {}))}'`;
@@ -281,6 +282,9 @@ Object.assign(VIEWS, {
         <label class="row">Exhaustion perk limit <input type="number" min="0" max="4" value="${rs.maxExhaustion}" ${B('rules.update', 'maxExhaustion', { id: rs.id })}></label></div>` : `<p class="note">Imported from ${esc(rs.source)}${rs.updated ? ', updated ' + new Date(rs.updated * 1000).toLocaleDateString() : ''}. ${rs.banned.length} survivor perks and ${(rs.killerBanned || []).length} killer perks banned for every killer${rs.maxRepetition ? `, each perk at most ${rs.maxRepetition} per team` : ''}. Import again to update.</p>`}
       ${rs.killers && Object.keys(rs.killers).length ? `<div class="row"><label class="row">Check against killer <select style="width:auto" ${B('builds.set', 'vsKiller')}>${opt('', 'General rules only', b.vsKiller || '')}${Object.entries(rs.killers).sort((x, y) => x[1].name.localeCompare(y[1].name)).map(([id, k]) => opt(id, esc(k.name) + (k.disabled ? ' (not allowed)' : ''), b.vsKiller)).join('')}</select></label></div>` : ''}
       ${kinfo ? `<div class="result"><span class="row">${art('portraits', b.vsKiller, 'portrait')}<span><strong>${esc(kinfo.name)}</strong>${kinfo.disabled ? ' <span class="bad">not allowed</span>' : ''}<br><span class="note">${kinfo.tiers.length ? esc(kinfo.tiers.join(', ')) + '. ' : ''}Maps: ${esc(kinfo.maps.join(', ') || 'not set')}. ${kinfo.survBanned.length} more survivor bans, ${kinfo.killerBanned.length} more killer bans.</span>${kinfo.notes ? `<br><span class="note">${esc(kinfo.notes.slice(0, 300))}</span>` : ''}</span></span></div>` : ''}
+      ${rs.source ? (() => { const sv = [...new Set([...(rs.banned || []), ...(kinfo ? kinfo.survBanned : [])])].filter((p) => !(kinfo && kinfo.survWhitelist.includes(p))); const kl = [...new Set([...(rs.killerBanned || []), ...(kinfo ? kinfo.killerBanned : [])])].filter((p) => !(kinfo && kinfo.killerWhitelist.includes(p)));
+        const grid = (ids) => `<div class="icons">${ids.map((p) => `<span title="${esc(pname(p))}">${art('perks', p, 'pi sm')}</span>`).join('')}</div>`;
+        return `<details><summary>Banned survivor perks${kinfo ? ' vs ' + esc(kinfo.name) : ''}: ${sv.length}</summary>${grid(sv)}</details><details><summary>Banned killer perks${kinfo ? ' on ' + esc(kinfo.name) : ''}: ${kl.length}</summary>${grid(kl)}</details>`; })() : ''}
       <div class="row"><button class="btn sm warn" ${A('rules.remove', { id: rs.id })}>Delete ruleset</button></div>
       ${custom ? `<p class="note">Banned survivor perks: ${rs.banned.length}. Zero for the exhaustion limit means no limit.</p>
       <div class="checks">${D.perks.map((p) => `<label><input type="checkbox" ${rs.banned.includes(p.id) ? 'checked' : ''} data-ban="${rs.id}" value="${p.id}">${art('perks', p.id, 'pi sm')}${esc(p.name)}</label>`).join('')}</div>` : ''}`;
@@ -422,4 +426,23 @@ VIEWS.league = () => {
         <select id="lg-role" style="width:auto" aria-label="Role">${Object.entries(ROLES).filter(([r]) => r !== 'owner').map(([r, n]) => opt(r, n, 'player')).join('')}</select>
         <input type="text" id="lg-team" style="width:140px" placeholder="Team" aria-label="Team"><button class="btn pri" data-form="member">Add member</button></div>
       <p class="note">Profiles, friends, invites and live shared match tracking need accounts and a server. Not connected in this version. See docs/ONLINE.md.</p></div>`];
+};
+
+VIEWS.home = () => {
+  const rows = TOOLS.filter((t) => S.overlays[t.id]).map((t) => { const o = S.overlays[t.id]; return `<tr>
+    <td><button class="btn sm" data-tool="${t.id}">${t.name}</button></td>
+    <td><button class="btn sm ${o.open ? 'pri' : ''}" ${A('overlay.toggle', { id: t.id })}>${o.open ? 'Shown' : 'Hidden'}</button></td>
+    <td>${t.id === 'crosshair' ? '<span class="note">always click-through</span>' : `<button class="btn sm" ${A('overlay.set', { id: t.id, locked: !o.locked })}>${o.locked ? 'Locked' : 'Movable'}</button>`}</td>
+    <td><input type="color" aria-label="${t.name} color" value="${o.color}" ${B('overlay.set', 'color', { id: t.id })}></td>
+    <td><input type="range" aria-label="${t.name} size" min="0.5" max="2.5" step="0.05" value="${o.scale}" ${B('overlay.set', 'scale', { id: t.id })}></td></tr>`; }).join('');
+  const shown = Object.values(S.overlays).filter((o) => o.open).length;
+  return ['Overlays', 'Every overlay in one place. Each one can sit over the game or go into OBS as a browser source.', `<div class="card"><h2>Status</h2>
+      <div class="row">${D.platform === 'win32' ? `<span class="${S.gameRunning ? 'good' : 'note'}">${S.gameRunning ? 'Dead by Daylight is running' : 'Dead by Daylight is not running'}</span>` : ''}
+        <span class="note">${shown} overlay${shown === 1 ? '' : 's'} shown${S.settings.overlaysHidden ? ', all hidden by hotkey' : ''}</span>
+        <span class="note">Input: ${S.settings.inputMode === 'passthrough' ? 'pass-through' : 'standard'}</span></div>
+      <div class="row"><button class="btn" ${A('overlays.toggleAll')}>${S.settings.overlaysHidden ? 'Unhide all' : 'Hide all'} ${key('overlays.toggleAll')}</button>
+        <button class="btn" ${A('overlays.toggleLock')}>Lock / unlock all ${key('overlays.toggleLock')}</button></div>
+      <p class="note">The game must run in borderless or windowed mode for overlays to show on top of it.</p></div>
+    <div class="card"><h2>All overlays</h2><table><tr><th>Tool</th><th>On screen</th><th>Position</th><th>Color</th><th>Size</th></tr>${rows}</table></div>
+    <div class="card"><h2>About</h2><p class="note">Free and open source (MIT). Not affiliated with Behaviour Interactive. This app reads the screen and never reads game memory or sends input to the game. Behaviour has not published a position on overlay tools: use at your own risk.</p></div>`];
 };

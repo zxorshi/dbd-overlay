@@ -44,13 +44,28 @@ function tokenFromCode(code) {
   if (/^Numpad\d$/.test(code)) return 'num' + code.slice(6);
   return ({ Space: 'Space', Tab: 'Tab', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Insert: 'Insert', Delete: 'Delete', Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec', CapsLock: 'Capslock' })[code] || null;
 }
+function cancelCapture() { if (!capturing) return; capturing = null; api.suspendHotkeys(false); if (S) panel(true); }
+let loneMod = null; // a modifier pressed alone during capture binds on release
 function capture(e, token) {
   if (!capturing) return;
   e.preventDefault(); e.stopPropagation();
   if (token) { const mods = (e.ctrlKey ? 'Ctrl+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey ? 'Shift+' : ''); api.act('hotkey.set', { action: capturing, key: mods + token }); }
   capturing = null; api.suspendHotkeys(false); panel(true);
 }
-document.addEventListener('keydown', (e) => { if (!capturing) return; if (e.key === 'Escape') return capture(e, null); if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return; const t = tokenFromCode(e.code); if (t) capture(e, t); }, true);
+document.addEventListener('keydown', (e) => {
+  if (!capturing) return;
+  if (e.key === 'Escape') return capture(e, null);
+  if (['Control', 'Alt', 'Shift'].includes(e.key)) { loneMod = e.key; e.preventDefault(); return; }
+  if (e.key === 'Meta') return;
+  loneMod = null; const t = tokenFromCode(e.code); if (t) capture(e, t);
+}, true);
+document.addEventListener('keyup', (e) => {
+  if (!capturing || e.key !== loneMod) return;
+  const token = { Control: 'Ctrl', Alt: 'Alt', Shift: 'Shift' }[loneMod]; loneMod = null;
+  api.act('hotkey.set', { action: capturing, key: token }); e.preventDefault(); cancelCapture();
+}, true);
+// A left click anywhere but on the binding being captured cancels the capture.
+document.addEventListener('mousedown', (e) => { if (capturing && e.button === 0 && !(e.target.closest('[data-bind]') || {}).dataset?.bind) cancelCapture(); }, true);
 document.addEventListener('mousedown', (e) => { if (capturing && [1, 3, 4].includes(e.button)) capture(e, 'Mouse' + ({ 1: 3, 3: 4, 4: 5 })[e.button]); }, true);
 const opt = (v, label, sel) => `<option value="${esc(v)}" ${String(v) === String(sel ?? '') ? 'selected' : ''}>${label}</option>`;
 
@@ -110,7 +125,7 @@ const VIEWS = {
         ${opt('cross', 'Cross', c.shape)}${opt('dot', 'Dot', c.shape)}${opt('circle', 'Circle', c.shape)}${opt('t', 'T', c.shape)}</select>
         <label><input type="checkbox" ${c.dot ? 'checked' : ''} ${B('crosshair.set', 'dot')}> Center dot</label>
         <label><input type="checkbox" ${c.outline ? 'checked' : ''} ${B('crosshair.set', 'outline')}> Black outline</label></div>
-      <div class="grid">${num('size', 'Size', 4, 200)}${num('thickness', 'Thickness', 1, 12)}${num('gap', 'Gap', 0, 60)}${num('offsetX', 'Offset X', -300, 300)}${num('offsetY', 'Offset Y', -300, 300)}</div>
+      <div class="grid">${num('size', 'Size', 2, 90)}${num('thickness', 'Thickness', 1, 12)}${num('gap', 'Gap', 0, 60)}${num('offsetX', 'Offset X', -150, 150)}${num('offsetY', 'Offset Y', -150, 150)}</div>
       <p class="note">Offsets move the mark for killers whose aim point is off-center.</p></div>
       <div class="card"><h2>Profiles</h2>
         <div class="list">${c.profiles.map((p) => `<div class="result"><span>${esc(p.name)}${p.id === c.profile ? ' <span class="good">active</span>' : ''}</span><span class="row"><button class="btn sm" ${A('crosshair.loadProfile', { id: p.id })}>Load</button><button class="btn sm warn" ${A('crosshair.deleteProfile', { id: p.id })} aria-label="Delete ${esc(p.name)}">✕</button></span></div>`).join('') || '<p class="note">No profiles. Save one per killer, then switch with a key.</p>'}</div>
@@ -173,7 +188,7 @@ const VIEWS = {
       <p class="note">Click a binding, then press the key or mouse button (middle or side buttons). Esc cancels.</p></div>
       <div class="card"><h2>Input mode</h2>
         <div class="row"><select style="width:auto" aria-label="Input mode" ${B('settings.set', 'inputMode')}>${opt('standard', 'Standard: the key is taken by this app', S.settings.inputMode)}${S.passthroughAvailable ? opt('passthrough', 'Pass-through: the key also reaches the game', S.settings.inputMode) : ''}</select></div>
-        <p class="note">Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>
+        <p class="note">Standard works without extra rights, keyboard only. Pass-through lets a key do its game action and trigger the tool at once (for example crouch starts the timer), and allows mouse buttons and a lone Ctrl, Shift or Alt. If pass-through keys do nothing while the game is focused, run this app as administrator.</p></div>
       <div class="card"><h2>Overlays</h2>
         <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
         <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
@@ -202,16 +217,27 @@ function rail() {
 let shown = null; let lastBody = ''; let lastCtl = ''; let mouseDown = false; let pending = false;
 function swap(el, html) {
   const drafts = {};
-  el.querySelectorAll('input[id], textarea[id], select[id]').forEach((n) => { drafts[n.id] = n.type === 'checkbox' ? n.checked : n.value; });
+  // Drafts are fields the user filled in that state does not hold. State-bound controls (data-set) and
+  // untouched prefilled fields take their fresh value from the new HTML.
+  el.querySelectorAll('input[id], textarea[id], select[id]').forEach((n) => {
+    if (n.dataset.set) return;
+    if (n.type === 'checkbox') { if (n.checked !== n.defaultChecked) drafts[n.id] = n.checked; return; }
+    const initial = n.tagName === 'SELECT' ? ([...n.options].find((o) => o.defaultSelected) || n.options[0] || {}).value : n.defaultValue;
+    if (n.value !== initial) drafts[n.id] = n.value;
+  });
+  const focusId = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : '';
   const open = [...el.querySelectorAll('details')].map((d) => d.open);
   el.innerHTML = html;
   for (const [id, v] of Object.entries(drafts)) { const n = el.querySelector('#' + CSS.escape(id)); if (n) { if (n.type === 'checkbox') n.checked = v; else n.value = v; } }
   el.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
+  if (focusId) { const n = el.querySelector('#' + CSS.escape(focusId)); if (n) n.focus(); }
 }
 function panel(force) {
   if (mouseDown && !force) { pending = true; return; }
   const root = $('#panel'); const el = document.activeElement;
-  const typing = el && root.contains(el) && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['checkbox', 'range', 'color'].includes(el.type)));
+  // Do not rebuild under a control in use: text being typed, an open dropdown, a slider or color picker.
+  // Only while this window has focus, so hotkey-driven changes still show when the game is in front.
+  const typing = document.hasFocus() && el && root.contains(el) && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type !== 'checkbox'));
   if (typing && !force) { pending = true; return; }
   pending = false;
   const [title, sub, body] = VIEWS[cur]();
@@ -228,12 +254,15 @@ function panel(force) {
 document.addEventListener('mousedown', () => { mouseDown = true; }, true);
 document.addEventListener('mouseup', () => { setTimeout(() => { mouseDown = false; if (pending && S) panel(false); }, 0); }, true);
 document.addEventListener('focusout', () => { setTimeout(() => { if (pending && S) panel(false); }, 0); });
+window.addEventListener('blur', () => { cancelCapture(); if (pending && S) panel(false); });
+// Sliders and color pickers keep focus after use; release it so the panel can refresh.
+document.addEventListener('change', (e) => { const t = e.target; if (t.tagName === 'INPUT' && (t.type === 'range' || t.type === 'color')) t.blur(); });
 
 document.addEventListener('click', (e) => {
   const bind = e.target.closest('[data-bind]');
   if (bind) { capturing = capturing === bind.dataset.bind ? null : bind.dataset.bind; api.suspendHotkeys(Boolean(capturing)); panel(true); return; }
   const tool = e.target.closest('[data-tool]');
-  if (tool) { cur = tool.dataset.tool; rail(); panel(true); return; }
+  if (tool) { cancelCapture(); cur = tool.dataset.tool; rail(); panel(true); return; }
   const snap = e.target.closest('[data-snap]');
   if (snap) { api.snap(snap.dataset.id, snap.dataset.snap); return; }
   const copy = e.target.closest('[data-copy]');

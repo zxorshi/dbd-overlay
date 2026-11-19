@@ -20,8 +20,16 @@
       "assets/**"
     ],
     "win": {
-      "target": "nsis"
-    }
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "asarUnpack": [
+      "src/main/winocr.ps1",
+      "node_modules/tesseract.js/**",
+      "node_modules/tesseract.js-core/**",
+      "node_modules/@tesseract.js-data/**",
+      "node_modules/uiohook-napi/**"
+    ]
   },
   "devDependencies": {
     "electron": "^33.4.11"

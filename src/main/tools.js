@@ -137,7 +137,14 @@ const actions = {
   'timer.set'(s, fields) { Object.assign(s.timer, fields); },
 
   // ---- crosshair
-  'crosshair.set'(s, fields) { Object.assign(s.crosshair, fields); },
+  'crosshair.set'(s, fields) {
+    // The crosshair window is 400 px square: keep the mark inside it.
+    for (const k of ['offsetX', 'offsetY']) if (k in fields) fields[k] = clamp(Number(fields[k]) || 0, -150, 150);
+    if ('size' in fields) fields.size = clamp(Number(fields.size) || 24, 2, 90);
+    if ('thickness' in fields) fields.thickness = clamp(Number(fields.thickness) || 1, 1, 12);
+    if ('gap' in fields) fields.gap = clamp(Number(fields.gap) || 0, 0, 60);
+    Object.assign(s.crosshair, fields);
+  },
   // Profiles hold one crosshair per killer (shape, size, offsets, color).
   'crosshair.saveProfile'(s, { name }, { now }) {
     const c = s.crosshair; const { profiles, profile, ...shape } = c;
@@ -292,12 +299,13 @@ Object.assign(actions, {
     s.score.current[field] = clamp(s.score.current[field] + delta, lim[0], lim[1]);
   },
   'score.endGame'(s, _p, ctx) {
-    const c = s.score.current; s.score.games.push({ ...c });
+    const c = s.score.current; const game = { ...c }; s.score.games.push(game);
     if (s.score.myTeam !== '' && s.score.myTeam !== undefined) {
       const asKiller = Number(s.score.myTeam) === c.killerTeam;
       // Target format: the win condition decides. Otherwise the common norm: 3+ kills killer win, 2 a draw.
       const killerResult = s.score.mode === 'target' ? (killerWon(s.score, c) ? 'win' : 'loss') : c.kills >= 3 ? 'win' : c.kills === 2 ? 'draw' : 'loss';
       const result = asKiller ? killerResult : killerResult === 'win' ? 'loss' : killerResult === 'loss' ? 'win' : 'draw';
+      game.statTs = ctx.now; // lets Undo remove the logged match
       actions['stats.add'](s, { role: asKiller ? 'killer' : 'survivor', character: asKiller ? c.killer : null, map: ctxMapName(s, ctx), result, stages: c.stages, gensLeft: c.gensLeft, kills: c.kills }, ctx);
     }
     s.score.current = newGame(c.killerTeam ? 0 : 1);
@@ -313,7 +321,11 @@ Object.assign(actions, {
     const c = s.score.current;
     if (side === 'killer') c.gensLeft = 0; else { c.hooks = [3, 3, 3, 3]; c.stages = 12; c.kills = 4; }
   },
-  'score.undoGame'(s) { const g = s.score.games.pop(); if (g) s.score.current = g; },
+  'score.undoGame'(s) {
+    const g = s.score.games.pop(); if (!g) return;
+    if (g.statTs) { s.stats.matches = s.stats.matches.filter((m) => m.ts !== g.statTs); delete g.statTs; }
+    s.score.current = g;
+  },
   'score.reset'(s) { s.score.games = []; s.score.current = newGame(0); },
 
   // ---- statistics

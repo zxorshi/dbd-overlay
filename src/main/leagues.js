@@ -4,7 +4,7 @@ const BASE = 'https://balancedbydaylight.com/';
 const norm = (s) => String(s).normalize('NFD').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
 
 async function getJson(file) {
-  const res = await fetch(BASE + file);
+  const res = await fetch(BASE + file, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
   return res.json();
 }
@@ -25,7 +25,7 @@ function convertPreset(preset, theirPerks, theirMaps, ourPerks, ourCharacters) {
   const fromTiers = (indexes, key) => (indexes || []).filter((i) => i !== 0).flatMap((i) => (tiers[i] || {})[key] || []);
   const killers = {};
   for (const k of preset.KillerOverride || []) {
-    const id = charId[norm(k.Name)]; if (!id) continue;
+    const id = charId[norm(k.Name)] || charId['the' + norm(k.Name)] || charId[norm(k.Name).replace(/^the/, '')]; if (!id) continue;
     killers[id] = {
       name: k.Name, disabled: Boolean(k.IsDisabled), notes: String(k.KillerNotes || '').slice(0, 2000),
       tiers: (k.BalanceTiers || []).map((i) => (tiers[i] || {}).Name).filter(Boolean),

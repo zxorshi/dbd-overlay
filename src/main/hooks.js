@@ -32,30 +32,54 @@ function parse(binding) {
 }
 const isMouse = (binding) => /(^|\+)Mouse[3-5]$/.test(binding);
 
-let listeners = null;
-function stopHook() {
-  if (uio && listeners) { uio.uIOhook.off('keydown', listeners.key); uio.uIOhook.off('keyup', listeners.up); uio.uIOhook.off('mousedown', listeners.mouse); try { uio.uIOhook.stop(); } catch { /* not running */ } }
-  listeners = null;
+const MOD_KEYS = { Ctrl: 'Ctrl', Shift: 'Shift', Alt: 'Alt' }; // a lone modifier can be a binding in pass-through mode
+
+// The native hook is started once and left running; rebinding only swaps this table.
+let table = []; let onFire = () => {}; let hookOn = false; let hookStarted = false;
+const down = new Set(); // held keys: the OS repeats keydown while a key is held, the action must fire once
+function fire(e, mouse, code) {
+  if (!hookOn) return;
+  for (const t of table) {
+    if (t.mouse !== mouse || t.code !== code) continue;
+    // Only the binding's own modifiers must be down. Extra held keys (sprint, crouch) do not block it.
+    if ((t.ctrl && !e.ctrlKey) || (t.alt && !e.altKey) || (t.shift && !e.shiftKey)) continue;
+    onFire(t.action);
+  }
 }
+function ensureHook() {
+  if (hookStarted) return true;
+  uio.uIOhook.on('keydown', (e) => { if (down.has(e.keycode)) return; down.add(e.keycode); fire(e, false, e.keycode); });
+  uio.uIOhook.on('keyup', (e) => down.delete(e.keycode));
+  uio.uIOhook.on('mousedown', (e) => fire(e, true, e.button));
+  try { uio.uIOhook.start(); hookStarted = true; } catch { return false; }
+  return true;
+}
+function stopHook() { hookOn = false; table = []; }
 
 // bindings: { action: binding }. Returns the actions whose binding could not be registered.
 function apply(bindings, mode, onAction) {
   globalShortcut.unregisterAll(); stopHook();
   const failed = []; const entries = Object.entries(bindings).filter(([, b]) => b);
   if (mode === 'passthrough' && uio) {
-    const table = entries.map(([action, b]) => { const p = parse(b); const code = isMouse(b) ? Number(p.key.slice(5)) : uio.UiohookKey[uioName(p.key)]; if (code === undefined) failed.push(action); return { action, ...p, code, mouse: isMouse(b) }; });
-    const down = new Set(); // held keys: the OS repeats keydown while a key is held, the action must fire once
-    const fire = (e, mouse, code) => { for (const t of table) if (t.mouse === mouse && t.code === code && t.ctrl === Boolean(e.ctrlKey) && t.alt === Boolean(e.altKey) && t.shift === Boolean(e.shiftKey)) onAction(t.action); };
-    listeners = { key: (e) => { if (down.has(e.keycode)) return; down.add(e.keycode); fire(e, false, e.keycode); }, up: (e) => down.delete(e.keycode), mouse: (e) => fire(e, true, e.button) };
-    uio.uIOhook.on('keydown', listeners.key); uio.uIOhook.on('keyup', listeners.up); uio.uIOhook.on('mousedown', listeners.mouse);
-    try { uio.uIOhook.start(); } catch { return entries.map(([a]) => a); }
+    if (!ensureHook()) return entries.map(([a]) => a);
+    table = entries.map(([action, b]) => {
+      const p = parse(b); const lone = MOD_KEYS[p.key];
+      const code = isMouse(b) ? Number(p.key.slice(5)) : uio.UiohookKey[lone || uioName(p.key)];
+      if (code === undefined) failed.push(action);
+      return { action, ...p, code, mouse: isMouse(b) };
+    });
+    onFire = onAction; hookOn = true;
     return failed;
   }
+  let last = {}; // standard mode: ignore auto-repeat (two triggers of one key within 150 ms)
   for (const [action, b] of entries) {
-    if (isMouse(b)) { failed.push(action); continue; } // mouse buttons need passthrough mode
-    try { if (!globalShortcut.register(b, () => onAction(action))) failed.push(action); } catch { failed.push(action); }
+    if (isMouse(b) || MOD_KEYS[parse(b).key]) { failed.push(action); continue; } // need pass-through mode
+    const run = () => { const now = Date.now(); const rep = now - (last[action] || 0) < 150; last[action] = now; if (!rep) onAction(action); };
+    try { if (!globalShortcut.register(b, run)) failed.push(action); } catch { failed.push(action); }
   }
   return failed;
 }
 
-module.exports = { apply, stop: () => { globalShortcut.unregisterAll(); stopHook(); }, tokenFromCode, parse, passthroughAvailable: Boolean(uio) };
+function shutdown() { globalShortcut.unregisterAll(); stopHook(); if (uio && hookStarted) { try { uio.uIOhook.stop(); } catch { /* not running */ } hookStarted = false; } }
+
+module.exports = { apply, stop: () => { globalShortcut.unregisterAll(); stopHook(); }, shutdown, tokenFromCode, parse, passthroughAvailable: Boolean(uio) };

@@ -6,7 +6,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 
 function createWinOcr(tmpDir) {
-  let proc = null; let ready = null; let waiting = null; let dead = process.platform !== 'win32';
+  let proc = null; let ready = null; let waiting = null; let seq = 0; let dead = process.platform !== 'win32';
   const script = path.join(__dirname, 'winocr.ps1').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
   const img = path.join(tmpDir, 'ocr-frame.png');
 
@@ -22,10 +22,12 @@ function createWinOcr(tmpDir) {
       proc.stdin.on('error', () => {});
       readline.createInterface({ input: proc.stdout }).on('line', (line) => {
         if (line === 'READY') { clearTimeout(timer); return resolve(); }
-        if (!waiting) { if (line.startsWith('ERR')) { clearTimeout(timer); fail(line.slice(4)); } return; }
+        if (line.startsWith('ERR')) { clearTimeout(timer); return fail(line.slice(4)); } // start-up failure
+        const m = line.match(/^(\d+) (OK|ERR) ?(.*)$/);
+        if (!m || !waiting || Number(m[1]) !== waiting.id) return; // stray output or a reply to a timed-out request
         const w = waiting; waiting = null; clearTimeout(w.timer);
-        if (line.startsWith('OK ')) { try { const v = JSON.parse(line.slice(3)); w.resolve(Array.isArray(v) ? v.map(String) : [String(v)]); } catch { w.resolve([]); } }
-        else w.reject(new Error(line.slice(4) || 'Windows OCR error'));
+        if (m[2] === 'OK') { try { const v = JSON.parse(m[3]); w.resolve(Array.isArray(v) ? v.map(String) : [String(v)]); } catch { w.resolve([]); } }
+        else w.reject(new Error(m[3] || 'Windows OCR error'));
       });
     });
     ready.catch(() => {});
@@ -40,8 +42,9 @@ function createWinOcr(tmpDir) {
       if (waiting) throw new Error('Windows OCR busy');
       await fs.promises.writeFile(img, png);
       return new Promise((resolve, reject) => {
-        waiting = { resolve, reject, timer: setTimeout(() => { waiting = null; reject(new Error('Windows OCR timed out')); }, 8000) };
-        proc.stdin.write(img + '\n');
+        const id = ++seq;
+        waiting = { id, resolve, reject, timer: setTimeout(() => { waiting = null; reject(new Error('Windows OCR timed out')); }, 8000) };
+        proc.stdin.write(id + ' ' + img + '\n');
       });
     },
     close() { dead = true; try { if (proc) proc.kill(); } catch { /* already gone */ } },

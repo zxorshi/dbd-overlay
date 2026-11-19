@@ -90,7 +90,7 @@ async function downloadCallouts() {
   for (const m of missing) {
     state.map.download = `Downloading ${done + 1} of ${missing.length}`; broadcast();
     try {
-      const res = await fetch(IMAGE_BASE_URL + m.image.split('/').map(encodeURIComponent).join('/'));
+      const res = await fetch(IMAGE_BASE_URL + m.image.split('/').map(encodeURIComponent).join('/'), { signal: AbortSignal.timeout(20000) });
       if (!res.ok) throw new Error(String(res.status));
       const file = path.join(calloutDir, m.image);
       fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -151,7 +151,7 @@ function onLines(lines, error, engine) {
 
 // What overlay pages and OBS sources receive: no screen text, no roster, no match log.
 function publicState() {
-  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined });
+  return JSON.stringify({ ...state, map: { ...state.map, lastText: '', lastError: '' }, league: undefined, stats: undefined, rulesets: undefined, hotkeys: undefined, timer: { ...state.timer, log: undefined } });
 }
 function broadcast() {
   state.calloutIds = Object.keys(callouts);
@@ -343,6 +343,8 @@ app.whenReady().then(async () => {
   });
   mainWin.loadFile(path.join(ROOT, 'src', 'ui', 'index.html'));
   mainWin.on('close', (e) => { if (state.settings.closeToTray && tray && !quitting) { e.preventDefault(); mainWin.hide(); } });
+  // Capture mode suspends hotkeys; never leave them suspended once the window is out of use.
+  mainWin.on('blur', () => registerHotkeys()); mainWin.on('hide', () => registerHotkeys());
   mainWin.on('closed', () => app.quit());
   try {
     tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
@@ -363,5 +365,5 @@ app.whenReady().then(async () => {
   syncDetector();
 });
 app.on('before-quit', () => { quitting = true; if (stateFile) writeNow(); });
-app.on('will-quit', () => { hooks.stop(); if (detector) detector.close(); });
+app.on('will-quit', () => { hooks.shutdown(); if (detector) detector.close(); });
 app.on('window-all-closed', () => app.quit());

@@ -9,6 +9,8 @@ const overlayDefaults = (i, id) => ({
   color: '#d7e3c5', scale: 1, opacity: 1,
 });
 
+const newGame = (killerTeam) => ({ killerTeam, killer: null, stages: 0, gensLeft: 5, kills: 0, hooks: [0, 0, 0, 0] });
+
 function defaultState() {
   return {
     version: 1,
@@ -25,6 +27,7 @@ function defaultState() {
       labels: ['You', 'Opponent'],
       slots: [{ base: 0, startedAt: null }, { base: 0, startedAt: null }],
       rounds: [0, 0],
+      history: [],
       bestOf: 3,
     },
     crosshair: { shape: 'cross', size: 24, thickness: 2, gap: 4, dot: false, outline: true, offsetX: 0, offsetY: 0 },
@@ -45,13 +48,13 @@ function defaultState() {
     lobby: { survivors: [0, 1, 2, 3].map((i) => ({ name: 'Survivor ' + (i + 1), perks: [null, null, null, null] })) },
     score: {
       teams: ['Team A', 'Team B'], bestOf: 3, games: [],
-      current: { killerTeam: 0, killer: null, stages: 0, gensLeft: 5, kills: 0 },
+      current: newGame(0),
     },
     stats: { matches: [] },
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
     league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
     map: { current: null, locked: false, auto: true, region: 'full', lastText: '', lastError: '', download: '' },
-    settings: { hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
+    settings: { closeToTray: false, hideFromCapture: false, overlaysHidden: false, onlyWhenGameRuns: true, scanSeconds: 2 },
   };
 }
 
@@ -94,6 +97,15 @@ const actions = {
     const slot = s.timer.slots[s.timer.active];
     slot.base = Math.max(slot.startedAt ? -Infinity : 0, slot.base - ms);
   },
+  // Award the round to the longer run, keep both times in the history, and clear the clocks.
+  'timer.scoreRound'(s, _p, { now }) {
+    const t = s.timer; const [a, b] = t.slots.map((x) => slotMs(x, now));
+    if (a === b) return;
+    const winner = a > b ? 0 : 1;
+    t.rounds[winner] += 1; t.history = [...(t.history || []), { a, b, winner }].slice(-20);
+    t.slots.forEach((x) => { x.base = 0; x.startedAt = null; }); t.active = 0;
+  },
+  'timer.newMatch'(s) { const t = s.timer; t.rounds = [0, 0]; t.history = []; t.slots.forEach((x) => { x.base = 0; x.startedAt = null; }); t.active = 0; },
   'timer.round'(s, { slot, delta = 1 }) { s.timer.rounds[slot] = Math.max(0, s.timer.rounds[slot] + delta); },
   'timer.set'(s, fields) { Object.assign(s.timer, fields); },
 
@@ -209,15 +221,24 @@ Object.assign(actions, {
   },
   'score.endGame'(s) {
     const c = s.score.current; s.score.games.push({ ...c });
-    s.score.current = { killerTeam: c.killerTeam ? 0 : 1, killer: null, stages: 0, gensLeft: 5, kills: 0 };
+    s.score.current = newGame(c.killerTeam ? 0 : 1);
+  },
+  // Per-survivor hook states (0 to 3). Stages and kills follow from them; a dead survivor counts as 3.
+  'score.hook'(s, { i, delta = 1, dead = false }) {
+    const c = s.score.current; if (!c.hooks) c.hooks = [0, 0, 0, 0];
+    c.hooks[i] = dead ? 3 : clamp(c.hooks[i] + delta, 0, 3);
+    c.stages = c.hooks.reduce((a, b) => a + b, 0); c.kills = c.hooks.filter((h) => h === 3).length;
   },
   'score.undoGame'(s) { const g = s.score.games.pop(); if (g) s.score.current = g; },
-  'score.reset'(s) { s.score.games = []; s.score.current = { killerTeam: 0, killer: null, stages: 0, gensLeft: 5, kills: 0 }; },
+  'score.reset'(s) { s.score.games = []; s.score.current = newGame(0); },
 
   // ---- statistics
   'stats.add'(s, m, { now }) {
     s.stats.matches.push({ ts: now, role: m.role || 'killer', character: m.character || null, map: m.map || '',
       result: m.result || 'win', stages: Number(m.stages) || 0, gensLeft: Number(m.gensLeft) || 0, kills: Number(m.kills) || 0 });
+    // One entry can also move the streak and the challenge, so a result is typed once.
+    if (m.streak && m.result !== 'draw') actions[m.result === 'win' ? 'streak.win' : 'streak.loss'](s);
+    if (m.challenge) actions['challenge.result'](s, { win: m.result === 'win' });
   },
   'stats.remove'(s, { ts }) { s.stats.matches = s.stats.matches.filter((m) => m.ts !== ts); },
 

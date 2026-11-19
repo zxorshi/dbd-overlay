@@ -17,7 +17,7 @@ const TOOLS = [
   { g: 'App', id: 'settings', name: 'Settings' },
 ];
 const HOTKEY_LABELS = {
-  'timer.toggle': 'Timer: start / stop', 'timer.switch': 'Timer: switch player', 'timer.reset': 'Timer: reset',
+  'timer.toggle': 'Timer: start / stop', 'timer.switch': 'Timer: switch player', 'timer.reset': 'Timer: reset', 'timer.scoreRound': 'Timer: score round',
   'perks.fireAll': 'Perk timers: fire all armed', 'streak.win': 'Streak: win', 'streak.loss': 'Streak: loss',
   'perkShuffle.roll': 'Perk shuffle: roll', 'killerShuffle.roll': 'Killer shuffle: roll', 'overlays.toggleLock': 'Overlays: lock / unlock all',
   'overlays.toggleAll': 'Overlays: show / hide all', 'map.nextVariant': 'Map: next variant', 'map.toggleLock': 'Map: lock / unlock',
@@ -50,7 +50,7 @@ function overlayCard(id) {
     </div>
     <div class="field"><span>OBS browser source URL</span>
       <div class="row"><span class="url">${url}</span><button class="btn sm" data-copy="${url}">Copy</button></div></div>
-    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it, drag its edges to resize. Lock it before playing.</p>'}
+    ${id === 'crosshair' ? '<p class="note">The crosshair sits at the center of the primary display and never takes mouse input.</p>' : '<p class="note">Unlocked: drag the overlay to move it. Use Size to scale it. Lock it before playing.</p>'}
   </div>`;
 }
 
@@ -70,6 +70,8 @@ const VIEWS = {
         <button class="btn" ${A('timer.penalty', { ms: 5000 })}>Penalty −5 s</button>
         <button class="btn warn" ${A('timer.reset')}>Reset ${key('timer.reset')}</button>
       </div>
+      <div class="row"><button class="btn" ${A('timer.scoreRound')}>Score round (longer run wins) ${key('timer.scoreRound')}</button><button class="btn" ${A('timer.newMatch')}>New match</button></div>
+      ${(t.history || []).length ? `<table><tr><th>Round</th><th>${esc(t.labels[0])}</th><th>${esc(t.labels[1])}</th><th>Winner</th></tr>${t.history.map((h, i) => `<tr><td>${i + 1}</td><td>${fmt(h.a)}</td><td>${fmt(h.b)}</td><td>${esc(t.labels[h.winner])}</td></tr>`).join('')}</table>` : ''}
       <div class="row"><label for="tl">Layout</label><select id="tl" style="width:auto" ${B('timer.set', 'layout')}>
         ${opt('dual', 'Dual with rounds', t.layout)}${opt('single', 'Single (active player)', t.layout)}${opt('compact', 'Compact', t.layout)}</select></div>
       <p class="note">Penalty deducts out-of-sight time from the active run.</p></div>`];
@@ -142,6 +144,7 @@ const VIEWS = {
       <div class="card"><h2>Overlays</h2>
         <label><input type="checkbox" ${S.settings.hideFromCapture ? 'checked' : ''} ${B('settings.set', 'hideFromCapture')}> Hide overlay windows from screen capture and recordings</label>
         <p class="note">With this on, OBS display capture and screenshots do not show the overlays. OBS browser sources are not affected.</p>
+        <label><input type="checkbox" ${S.settings.closeToTray ? 'checked' : ''} ${B('settings.set', 'closeToTray')}> Closing the window keeps the app running in the tray</label>
         <label><input type="checkbox" ${S.settings.overlaysHidden ? 'checked' : ''} ${B('settings.set', 'overlaysHidden')}> Hide all overlays ${key('overlays.toggleAll')}</label></div>`];
   },
 };
@@ -222,7 +225,7 @@ const val = (id) => ($('#' + id) ? $('#' + id).value : '');
 const FORMS = {
   rules() { api.act('rules.import', { json: val('rs-json') }); },
   rule() { api.act('challenge.addRule', { text: val('ch-rule') }); panel(true); },
-  stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills') }); },
+  stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills'), streak: $('#st-streak').checked, challenge: $('#st-chal').checked }); },
   export() { api.copy(JSON.stringify(S.stats.matches)); },
   member() { api.act('league.add', { name: val('lg-name'), role: val('lg-role'), team: val('lg-team') }); panel(true); },
   folder() { api.callouts('open'); },
@@ -283,9 +286,12 @@ Object.assign(VIEWS, {
         <div class="row"><label class="row">Killer side <select style="width:auto" data-killerteam>${opt(0, esc(sc.teams[0]), c.killerTeam)}${opt(1, esc(sc.teams[1]), c.killerTeam)}</select></label>
           <select style="width:auto" aria-label="Killer" ${B('score.current', 'killer')}>${charOpts('killer', c.killer)}</select>
           ${d.pending ? `<span class="note">To beat: ${d.pending.stages} stages, ${d.pending.gensLeft} gens left</span>` : ''}</div>
-        <div class="row">${bump('stages', 'Hook stages', 12)}${bump('gensLeft', 'Gens left', 5)}${bump('kills', 'Kills', 4)}</div>
+        <div class="row">${(c.hooks || [0, 0, 0, 0]).map((h, i) => `<div class="slot ${h === 3 ? 'dead' : ''}"><span class="note">${esc(S.lobby.survivors[i].name)}</span>
+            <span class="pips">${[1, 2, 3].map((n) => `<i class="${h >= n ? 'on' : ''}"></i>`).join('')}</span>
+            <div class="row"><button class="btn sm" ${A('score.hook', { i, delta: -1 })}>−</button><button class="btn sm pri" ${A('score.hook', { i, delta: 1 })}>Hook</button><button class="btn sm warn" ${A('score.hook', { i, dead: true })}>Dead</button></div></div>`).join('')}</div>
+        <div class="row"><div class="slot"><span class="note">Hook stages</span><span class="big">${c.stages}<span class="note"> / 12</span></span></div>${bump('gensLeft', 'Gens left', 5)}<div class="slot"><span class="note">Kills</span><span class="big">${c.kills}<span class="note"> / 4</span></span></div></div>
         <div class="row"><button class="btn pri" ${A('score.endGame')}>End game</button><button class="btn" ${A('score.undoGame')}>Undo last game</button><button class="btn warn" ${A('score.reset')}>Reset match</button></div>
-        <p class="note">A dead survivor counts as 3 stages. Enter stages by hand in this version.</p></div>
+        <p class="note">Press Hook each time a survivor is hooked or reaches the next stage. Dead sets a survivor to 3 stages. Survivor names come from Lobby Perks.</p></div>
       ${hist ? `<div class="card"><h2>Sets</h2><table>${hist}</table></div>` : ''}`];
   },
   stats() {
@@ -300,6 +306,7 @@ Object.assign(VIEWS, {
           <label class="field"><span>Hook stages</span><input type="number" id="st-stages" min="0" max="12" value="0"></label>
           <label class="field"><span>Gens left</span><input type="number" id="st-gens" min="0" max="5" value="0"></label>
           <label class="field"><span>Kills</span><input type="number" id="st-kills" min="0" max="4" value="0"></label></div>
+        <div class="row"><label><input type="checkbox" id="st-streak" checked> Count toward streak</label><label><input type="checkbox" id="st-chal"> Count toward challenge</label></div>
         <div class="row"><button class="btn pri" data-form="stats">Add match</button><button class="btn" data-form="export">Copy all as JSON</button></div></div>
       <div class="card"><h2>Record: ${d.total.wins} W, ${d.total.losses} L, ${d.total.draws} D (${d.total.rate}%)</h2>
         ${rows ? `<table><tr><th>Character</th><th>Played</th><th>W</th><th>L</th><th>D</th><th>Win rate</th></tr>${rows}</table>` : '<p class="note">No matches logged.</p>'}</div>

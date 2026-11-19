@@ -80,6 +80,7 @@ function draw() {
   document.documentElement.style.setProperty('--c', o.color);
   document.documentElement.style.setProperty('--scale', o.scale);
   document.body.classList.toggle('unlocked', isWindow && !o.locked && id !== 'crosshair');
+  document.getElementById('frame').dataset.name = id;
   if (!isWindow) document.body.style.opacity = o.opacity;
   const html = render[id](state);
   if (root.innerHTML !== html) root.innerHTML = html;
@@ -89,6 +90,18 @@ function draw() {
     root.style.transform = k < 1 ? `scale(${k})` : '';
   }
   sounds();
+  fit();
+}
+
+// App windows size themselves to their content, so only position and the Size slider need setting.
+let lastSize = '';
+function fit() {
+  if (!isWindow || id === 'crosshair') return;
+  const r = root.getBoundingClientRect();
+  const size = Math.ceil(r.width) + 'x' + Math.ceil(r.height);
+  if (size === lastSize || r.width < 2) return;
+  lastSize = size;
+  fetch('/size/' + id, { method: 'POST', body: JSON.stringify({ w: Math.ceil(r.width), h: Math.ceil(r.height) }) }).catch(() => {});
 }
 
 fetch('/data').then((r) => r.json()).then((d) => { data = d; draw(); });
@@ -113,6 +126,7 @@ Object.assign(render, {
     const team = (i) => `<div class="col ${c.killerTeam === i ? '' : 'dim'}"><span class="lab">${c.killerTeam === i ? 'Killer' : 'Survivors'}</span><span class="name">${esc(sc.teams[i])}</span></div>`;
     return `<div class="plate">${team(0)}<span class="num">${d.sets[0]} : ${d.sets[1]}</span>${team(1)}
       ${icon('portraits', c.killer, 'portrait')}
+      <div class="col"><span class="lab">Hooks</span><span class="hooks">${(c.hooks || []).map((h) => `<span class="sv ${h === 3 ? 'dead' : ''}">${[1, 2, 3].map((n) => `<i class="${h >= n ? 'on' : ''}"></i>`).join('')}</span>`).join('')}</span></div>
       <div class="col"><span class="lab">Stages</span><span class="num sm">${c.stages}/12</span></div>
       <div class="col"><span class="lab">Gens left</span><span class="num sm">${c.gensLeft}</span></div>
       <div class="col"><span class="lab">Kills</span><span class="num sm">${c.kills}</span></div>

@@ -1,5 +1,5 @@
 // Main process: state store, overlay windows, global hotkeys, local server for overlays and OBS.
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell, Tray, Menu, nativeImage } = require('electron');
 const { execFile } = require('node:child_process');
 const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
@@ -18,6 +18,8 @@ const session = createSession(catalog);
 let callouts = {}; // map id -> image file path
 let calloutDir = '';
 let detector = null;
+const ICON = path.join(ROOT, 'assets', 'icon.png');
+let tray = null; let quitting = false;
 const PORT = Number(process.env.DBD_OVERLAY_PORT) || 47810;
 
 let state = defaultState();
@@ -143,7 +145,7 @@ function syncOverlayWindows() {
     if (!win) {
       win = new BrowserWindow({
         x: o.x, y: o.y, width: o.w, height: o.h, show: false,
-        frame: false, transparent: true, resizable: true, skipTaskbar: true, hasShadow: false,
+        frame: false, transparent: true, resizable: false, skipTaskbar: true, hasShadow: false,
         alwaysOnTop: true, focusable: false, fullscreenable: false, minWidth: 60, minHeight: 40,
         webPreferences: { contextIsolation: true },
       });
@@ -203,6 +205,21 @@ function serve() {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ perks, characters, art, maps }));
     }
+    const sz = req.method === 'POST' && url.pathname.match(/^\/size\/([A-Za-z]+)$/);
+    if (sz) {
+      let body = ''; req.on('data', (c) => { if (body.length < 200) body += c; });
+      req.on('end', () => {
+        try {
+          const { w, h } = JSON.parse(body); const win = overlayWins.get(sz[1]);
+          if (win && !win.isDestroyed() && w > 0 && h > 0 && w < 4000 && h < 4000) {
+            const b = win.getBounds(); const nw = Math.round(w) + 28; const nh = Math.round(h) + 28;
+            if (b.width !== nw || b.height !== nh) win.setBounds({ x: b.x, y: b.y, width: nw, height: nh });
+          }
+        } catch { /* ignore malformed size reports */ }
+        res.writeHead(204); res.end();
+      });
+      return;
+    }
     const co = url.pathname.match(/^\/callout\/([A-Za-z0-9_]+)$/);
     if (co) {
       const file = callouts[co[1]];
@@ -249,15 +266,30 @@ app.whenReady().then(async () => {
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
   mainWin = new BrowserWindow({
-    width: 1120, height: 720, minWidth: 820, minHeight: 520, backgroundColor: '#141a16', autoHideMenuBar: true,
+    width: 1120, height: 720, minWidth: 820, minHeight: 520, backgroundColor: '#141a16', autoHideMenuBar: true, icon: ICON,
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js'), contextIsolation: true },
   });
   mainWin.loadFile(path.join(ROOT, 'src', 'ui', 'index.html'));
+  mainWin.on('close', (e) => { if (state.settings.closeToTray && !quitting) { e.preventDefault(); mainWin.hide(); } });
   mainWin.on('closed', () => app.quit());
+  try {
+    tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
+    tray.setToolTip('DBD Overlay');
+    const showMain = () => { mainWin.show(); mainWin.focus(); };
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Open DBD Overlay', click: showMain },
+      { label: 'Show / hide all overlays', click: () => act('overlays.toggleAll') },
+      { label: 'Lock / unlock all overlays', click: () => act('overlays.toggleLock') },
+      { type: 'separator' },
+      { label: 'Quit', click: () => { quitting = true; app.quit(); } },
+    ]));
+    tray.on('click', showMain);
+  } catch { /* no tray on this desktop */ }
   registerHotkeys();
   syncOverlayWindows();
   checkGame(); setInterval(checkGame, 5000);
   syncDetector();
 });
+app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());

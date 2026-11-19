@@ -65,8 +65,9 @@ test('merge keeps saved values and adds new keys', () => {
 const { scoreSummary, statsSummary, derive } = require('../src/main/tools');
 test('scoreboard: set decided by stages, then gens left', () => {
   const s = defaultState();
-  dispatch(s, 'score.bump', { field: 'stages', delta: 20 }, ctx(0));
-  assert.equal(s.score.current.stages, 12);
+  for (let n = 0; n < 5; n++) dispatch(s, 'score.hook', { i: 0 }, ctx(0));
+  dispatch(s, 'score.hook', { i: 1, dead: true }, ctx(0)); dispatch(s, 'score.hook', { i: 2 }, ctx(0));
+  assert.deepEqual([s.score.current.stages, s.score.current.kills], [7, 2]);
   dispatch(s, 'score.current', { stages: 8, gensLeft: 2 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
   assert.equal(s.score.current.killerTeam, 1);
   dispatch(s, 'score.current', { stages: 8, gensLeft: 1 }, ctx(0)); dispatch(s, 'score.endGame', {}, ctx(0));
@@ -109,4 +110,18 @@ test('map session: locks after two reads, unlocks at scoreboard, cooldown blocks
   assert.equal(s.onLines(['Blood Lodge'], cur, 64000), null);
   s.onLines(['Gas Heaven'], cur, 90000);
   assert.ok(s.onLines(['Gas Heaven'], cur, 92000).lock);
+});
+
+test('timer: score round goes to the longer run', () => {
+  const s = defaultState();
+  s.timer.slots[0].base = 40000; s.timer.slots[1].base = 52000;
+  dispatch(s, 'timer.scoreRound', {}, ctx(0));
+  assert.deepEqual(s.timer.rounds, [0, 1]);
+  assert.equal(s.timer.history.length, 1);
+  assert.equal(s.timer.slots[1].base, 0);
+});
+test('stats entry can move streak and challenge', () => {
+  const s = defaultState();
+  dispatch(s, 'stats.add', { result: 'win', streak: true, challenge: true }, ctx(1));
+  assert.deepEqual([s.streak.current, s.challenge.wins, s.stats.matches.length], [1, 1, 1]);
 });

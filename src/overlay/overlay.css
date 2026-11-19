@@ -32,4 +32,11 @@ body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba
 .callout { border-radius: 8px; display: block; }
 .ring { width: 260px; height: 260px; }
 .plate.slim { padding: 3px 10px; gap: 8px; }
-.callout { max-width: 96vw; max-height: 84vh; }
+.callout { width: 420px; height: auto; }
+body.unlocked #frame::before { content: 'drag to move'; position: absolute; top: 2px; left: 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #d7e3c5; opacity: 0.8; }
+#frame { position: relative; }
+.hooks { display: flex; gap: 8px; height: 18px; align-items: center; }
+.sv { display: flex; gap: 2px; }
+.sv i { width: 7px; height: 14px; border-radius: 2px; border: 1px solid currentColor; opacity: 0.55; }
+.sv i.on { background: currentColor; opacity: 1; }
+.sv.dead { color: #e58a6f; }

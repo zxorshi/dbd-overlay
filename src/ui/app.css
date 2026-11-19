@@ -68,3 +68,7 @@ textarea { background: var(--ground); border: 1px solid var(--line); border-radi
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 th { color: var(--mute); font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.pips { display: flex; gap: 6px; }
+.pips i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--mute); }
+.pips i.on { background: var(--ember); border-color: var(--ember); }
+.slot.dead { opacity: 0.55; }

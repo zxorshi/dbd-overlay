@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, screen, clipboard, desktopCapturer, shell, 
 const { execFile } = require('node:child_process');
 const leagues = require('./leagues');
 const hooks = require('./hooks');
+const { createWinOcr } = require('./winocr');
 const { createDetector, createSession, buildCatalog, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
@@ -139,7 +140,8 @@ function syncDetector() {
   // The app window lists every map name; keep it out of screen capture so it is never read as the game's map.
   if (mainWin && !mainWin.isDestroyed()) mainWin.setContentProtection(Boolean(state.map.auto));
 }
-function onLines(lines, error) {
+function onLines(lines, error, engine) {
+  state.map.engine = engine || '';
   state.map.lastText = lines.join(' | ').slice(0, 300); state.map.lastError = error || '';
   const ev = session.onLines(lines, { id: state.map.current, locked: state.map.locked }, Date.now());
   if (ev && ev.lock) { state.map.current = ev.lock; state.map.locked = true; }
@@ -304,7 +306,7 @@ app.whenReady().then(async () => {
   calloutDir = path.join(app.getPath('userData'), 'callouts');
   fs.mkdirSync(calloutDir, { recursive: true });
   scanCallouts();
-  detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines });
+  detector = createDetector({ cacheDir: app.getPath('userData'), grab: grabScreen, onLines, winOcr: createWinOcr(app.getPath('temp')), engineChoice: () => state.settings.ocrEngine });
   try { await serve(); } catch (err) { dialog.showErrorBox('DBD Overlay', 'Could not start the local overlay server: ' + err.message); app.quit(); return; }
   ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), platform: process.platform, presets: CHALLENGE_PRESETS, timerPresets: TIMER_PRESETS, maps, calloutDir, perks, characters, art, port, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
@@ -350,5 +352,5 @@ app.whenReady().then(async () => {
   syncDetector();
 });
 app.on('before-quit', () => { quitting = true; if (stateFile) writeNow(); });
-app.on('will-quit', () => hooks.stop());
+app.on('will-quit', () => { hooks.stop(); if (detector) detector.close(); });
 app.on('window-all-closed', () => app.quit());

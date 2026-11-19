@@ -437,9 +437,10 @@ VIEWS.map = () => {
         <label><input type="checkbox" ${S.settings.onlyWhenGameRuns ? 'checked' : ''} ${B('settings.set', 'onlyWhenGameRuns')}> Only while the game is running</label></div>
       <div class="row"><label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
         <label class="row">Every <input type="number" min="1" max="10" value="${S.settings.scanSeconds}" ${B('settings.set', 'scanSeconds')}> s</label>
+        ${D.platform === 'win32' ? `<label class="row">Reader <select style="width:auto" ${B('settings.set', 'ocrEngine')}>${opt('auto', 'Windows OCR, then Tesseract', S.settings.ocrEngine)}${opt('tesseract', 'Tesseract only', S.settings.ocrEngine)}</select></label>` : ''}
         <button class="btn" data-form="detect">Read screen now</button></div>
       ${m.lastError ? `<p class="bad">${esc(m.lastError)}</p>` : ''}
-      <p class="note">Reads the map name shown when a trial loads. The game must run in borderless or windowed mode. The same map must be read twice in a row before it locks. Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
+      <p class="note">Reads the map name shown when a trial loads. The game must run in borderless or windowed mode. The same map must be read twice in a row before it locks. ${m.engine ? 'Reader in use: ' + esc(m.engine) + '. ' : ''}Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.slice(0, 160))}</span>` : 'none'}</p></div>
     <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length}</h2>
       <div class="row">${missing ? `<button class="btn pri" data-form="download">Download ${missing} images from hens333.com</button>` : ''}
         <button class="btn" data-form="folder">Open callouts folder</button><button class="btn" data-form="rescan">Rescan</button></div>

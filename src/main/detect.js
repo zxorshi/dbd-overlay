@@ -93,9 +93,10 @@ function createSession(catalog) {
 // Crops applied before OCR, as fractions of the frame: [x, y, width, height].
 const REGIONS = { full: [0, 0, 1, 1], bottomLeft: [0, 0.5, 0.5, 0.5], bottom: [0, 0.6, 1, 0.4], center: [0.2, 0.3, 0.6, 0.4] };
 
-function createDetector({ cacheDir, grab, onLines }) {
-  let worker = null; let timer = null; let busy = false;
-  async function recognize(png) {
+// `winOcr` (optional) is tried first; Tesseract is the fallback and the only engine off Windows.
+function createDetector({ cacheDir, grab, onLines, winOcr, engineChoice = () => 'auto' }) {
+  let worker = null; let timer = null; let busy = false; let engine = '';
+  async function tesseract(png) {
     if (!worker) {
       const { createWorker } = require('tesseract.js');
       // Packaged builds keep these modules outside the asar archive (see asarUnpack in package.json).
@@ -109,16 +110,23 @@ function createDetector({ cacheDir, grab, onLines }) {
     const { data } = await worker.recognize(png);
     return data.text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   }
+  async function recognize(png) {
+    if (winOcr && winOcr.available && engineChoice() !== 'tesseract') {
+      try { const lines = await winOcr.recognize(png); engine = 'Windows OCR'; return lines; } catch { /* fall through */ }
+    }
+    engine = 'Tesseract';
+    return tesseract(png);
+  }
   async function scan(region) {
     if (busy) return; busy = true;
-    try { const png = await grab(REGIONS[region] || REGIONS.full); onLines(png ? await recognize(png) : [], null); }
-    catch (err) { onLines([], String(err.message || err)); } finally { busy = false; }
+    try { const png = await grab(REGIONS[region] || REGIONS.full); onLines(png ? await recognize(png) : [], null, engine); }
+    catch (err) { onLines([], String(err.message || err), engine); } finally { busy = false; }
   }
   return {
     scan, recognize,
     start(region, ms = 2000) { this.stop(); timer = setInterval(() => scan(region), ms); },
     stop() { clearInterval(timer); timer = null; },
-    async close() { this.stop(); if (worker) await worker.terminate(); worker = null; },
+    async close() { this.stop(); if (winOcr) winOcr.close(); if (worker) await worker.terminate(); worker = null; },
   };
 }
 

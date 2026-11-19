@@ -88,3 +88,12 @@ test('stats: win rate per character', () => {
   assert.equal(sum.total.rate, 67);
   assert.equal(sum.by[0].key, 'B');
 });
+
+const { matchMap } = require('../src/main/detect');
+const maps = require('../data/maps.json');
+test('map match: tolerates OCR noise, rejects unrelated text', () => {
+  const id = (name) => maps.find((m) => m.name === name).id;
+  assert.equal(matchMap('THE MACMILLAN ESTATE\nC0AL TOWER', maps).id, id('Coal Tower'));
+  assert.equal(matchMap('autohaven wreckers - Blood Lodqe', maps).id, id('Blood Lodge'));
+  assert.equal(matchMap('Repair generators\nEscape the trial', maps), null);
+});

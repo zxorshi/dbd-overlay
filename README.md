@@ -14,8 +14,14 @@ Not affiliated with or endorsed by Behaviour Interactive. Use at your own risk: 
 | Streak Counter | Working |
 | Perk Shuffle | Working |
 | Killer Shuffle | Working |
-| Map Callouts, Build Library, Match Scoreboard, Lobby Perks, Statistics, Challenges | Planned |
-| Party, League Tracker | Planned, needs a server |
+| Build Library with ruleset check | Working |
+| Lobby Perks | Working, manual entry |
+| Match Scoreboard (sets, hook stages, gens, kills) | Working, manual entry |
+| Statistics | Working, manual entry |
+| Challenges | Working |
+| Map Callouts | Working with your own images. Map detection by screen reading: untested against the game |
+| My League (roster, roles) | Local only |
+| Party, live league tracking, friends | Planned, needs a server. See `docs/ONLINE.md` |
 
 Every tool has an in-app panel and an overlay. An overlay can be shown as a window over the game (borderless or windowed mode) or added to OBS as a browser source from its local URL.
 
@@ -41,7 +47,9 @@ npm test
 | `src/main/main.js` | Windows, hotkeys, local server (127.0.0.1 only) |
 | `src/ui/` | Main window |
 | `src/overlay/` | Overlay pages, shared by app windows and OBS |
-| `data/` | Perk and character names. Refresh with `npm run update-data` |
+| `src/main/detect.js` | Map detection: screen capture, OCR, fuzzy match |
+| `data/` | Perk, character and map names. Refresh with `npm run update-data` |
+| `assets/game/` | Perk icons and portraits. Refresh with `npm run update-assets` |
 
 ## Data and credits
 

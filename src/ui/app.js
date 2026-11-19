@@ -6,12 +6,14 @@ const TOOLS = [
   { g: 'Play', id: 'streak', name: 'Streak Counter' },
   { g: 'Play', id: 'perkShuffle', name: 'Perk Shuffle' },
   { g: 'Play', id: 'killerShuffle', name: 'Killer Shuffle' },
-  { g: 'Compete', id: 'map', name: 'Map Callouts', soon: true },
+  { g: 'Compete', id: 'map', name: 'Map Callouts' },
   { g: 'Compete', id: 'builds', name: 'Build Library' },
   { g: 'Compete', id: 'score', name: 'Match Scoreboard' },
   { g: 'Compete', id: 'lobby', name: 'Lobby Perks' },
   { g: 'Compete', id: 'stats', name: 'Statistics' },
   { g: 'Compete', id: 'challenge', name: 'Challenges' },
+  { g: 'Online', id: 'league', name: 'My League' },
+  { g: 'Online', id: 'party', name: 'Party', soon: true },
   { g: 'App', id: 'settings', name: 'Hotkeys' },
 ];
 const HOTKEY_LABELS = {
@@ -217,6 +219,10 @@ const FORMS = {
   rule() { api.act('challenge.addRule', { text: val('ch-rule') }); panel(true); },
   stats() { api.act('stats.add', { role: val('st-role'), character: val('st-char'), map: val('st-map'), result: val('st-result'), stages: val('st-stages'), gensLeft: val('st-gens'), kills: val('st-kills') }); },
   export() { api.copy(JSON.stringify(S.stats.matches)); },
+  member() { api.act('league.add', { name: val('lg-name'), role: val('lg-role'), team: val('lg-team') }); panel(true); },
+  folder() { api.callouts('open'); },
+  rescan() { api.callouts('scan'); },
+  detect() { api.detect(); },
 };
 
 Object.assign(VIEWS, {
@@ -316,3 +322,38 @@ document.addEventListener('change', (e) => {
   else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
   else if (t.id === 'st-role') S._statRole = t.value;
 });
+
+VIEWS.map = () => {
+  const m = S.map; const realms = [...new Set(D.maps.map((x) => x.realm))];
+  const has = (id) => (S.calloutIds || []).includes(id);
+  const opts = opt('', 'No map', m.current || '') + realms.map((r) => `<optgroup label="${esc(r)}">${D.maps.filter((x) => x.realm === r).map((x) => opt(x.id, esc(x.name) + (has(x.id) ? '' : ' (no image)'), m.current)).join('')}</optgroup>`).join('');
+  return ['Map Callouts', 'Clock callouts for the current map: 12 at the top, numbers run clockwise.', `<div class="card"><h2>Map</h2>
+      <div class="row"><select style="width:auto" aria-label="Map" ${B('map.set', 'current')}>${opts}</select></div>
+      <div class="row"><label><input type="checkbox" ${m.auto ? 'checked' : ''} ${B('map.set', 'auto')}> Detect map from the screen</label>
+        <label class="row">Area read <select style="width:auto" ${B('map.set', 'region')}>${opt('full', 'Whole screen', m.region)}${opt('bottomLeft', 'Bottom left', m.region)}${opt('bottom', 'Bottom strip', m.region)}${opt('center', 'Center', m.region)}</select></label>
+        <button class="btn" data-form="detect">Read screen now</button></div>
+      ${m.lastError ? `<p class="bad">${esc(m.lastError)}</p>` : ''}
+      <p class="note">Detection reads the map name shown when a trial loads. Run the game in borderless or windowed mode. Last text read: ${m.lastText ? `<span class="url">${esc(m.lastText.replace(/\s+/g, ' ').slice(0, 140))}</span>` : 'none'}${m.lastScore ? ` (match ${Math.round(m.lastScore * 100)}%)` : ''}</p></div>
+    <div class="card"><h2>Callout images: ${(S.calloutIds || []).length} of ${D.maps.length} maps</h2>
+      <p class="note">Put images in the callouts folder, named after the map, for example <kbd>Coal Tower.png</kbd>. PNG, JPG or WebP. Subfolders are read too.</p>
+      <div class="row"><button class="btn" data-form="folder">Open callouts folder</button><button class="btn" data-form="rescan">Rescan</button></div>
+      <p class="url">${esc(D.calloutDir)}</p>
+      <p class="note">No callout images ship with the app. A map without an image shows a plain clock ring.</p></div>`];
+};
+
+const ROLES = { owner: 'Owner', admin: 'Admin', referee: 'Referee', caster: 'Caster', player: 'Player' };
+VIEWS.league = () => {
+  const l = S.league;
+  const rows = l.members.map((m) => `<tr><td>${esc(m.name)}</td>
+    <td>${m.role === 'owner' ? 'Owner' : `<select style="width:auto" aria-label="Role" ${B('league.update', 'role', { id: m.id })}>${Object.entries(ROLES).filter(([r]) => r !== 'owner').map(([r, n]) => opt(r, n, m.role)).join('')}</select>`}</td>
+    <td><input type="text" aria-label="Team" value="${esc(m.team)}" ${B('league.update', 'team', { id: m.id })}></td>
+    <td>${m.role === 'owner' ? '' : `<span class="row"><button class="btn sm" ${A('league.transfer', { id: m.id })}>Make owner</button><button class="btn sm warn" ${A('league.remove', { id: m.id })}>Remove</button></span>`}</td></tr>`).join('');
+  return ['My League', 'Roster and roles. Stored on this computer until a server is connected.', `<div class="card"><h2>League</h2>
+      <label class="field"><span>Name</span><input type="text" value="${esc(l.name)}" ${B('league.set', 'name')}></label></div>
+    <div class="card"><h2>Members: ${l.members.length}</h2>
+      ${rows ? `<table><tr><th>Name</th><th>Role</th><th>Team</th><th></th></tr>${rows}</table>` : '<p class="note">No members. The first member added becomes the owner.</p>'}
+      <div class="row"><input type="text" id="lg-name" style="width:180px" placeholder="Name" aria-label="Name">
+        <select id="lg-role" style="width:auto" aria-label="Role">${Object.entries(ROLES).filter(([r]) => r !== 'owner').map(([r, n]) => opt(r, n, 'player')).join('')}</select>
+        <input type="text" id="lg-team" style="width:140px" placeholder="Team" aria-label="Team"><button class="btn pri" data-form="member">Add member</button></div>
+      <p class="note">Profiles, friends, invites and live shared match tracking need accounts and a server. Not connected in this version. See docs/ONLINE.md.</p></div>`];
+};

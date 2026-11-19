@@ -1,5 +1,6 @@
 // Main process: state store, overlay windows, global hotkeys, local server for overlays and OBS.
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, clipboard, desktopCapturer, shell } = require('electron');
+const { createDetector, norm } = require('./detect');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,6 +11,10 @@ const perks = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'perks.json'), 
 const characters = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'characters.json'), 'utf8'));
 let art = { perks: [], portraits: [] };
 try { art = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'game', 'manifest.json'), 'utf8')); } catch { /* no art downloaded */ }
+const maps = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'maps.json'), 'utf8'));
+let callouts = {}; // map id -> image file path
+let calloutDir = '';
+let detector = null;
 const PORT = Number(process.env.DBD_OVERLAY_PORT) || 47810;
 
 let state = defaultState();
@@ -28,7 +33,41 @@ function save() {
   saveTimer = setTimeout(() => fs.writeFile(stateFile, JSON.stringify(state), () => {}), 300);
 }
 
+// ---- map callouts ----------------------------------------------------------
+// Image packs: any .png/.jpg/.webp in the callouts folder (or one level down) named after a map.
+function scanCallouts() {
+  callouts = {};
+  const byName = Object.fromEntries(maps.map((m) => [norm(m.name), m.id]));
+  const visit = (dir, depth) => {
+    let entries = []; try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory() && depth < 2) visit(full, depth + 1);
+      else if (/\.(png|jpe?g|webp)$/i.test(e.name)) { const id = byName[norm(e.name.replace(/\.[^.]+$/, ''))]; if (id && !callouts[id]) callouts[id] = full; }
+    }
+  };
+  visit(calloutDir, 0);
+}
+async function grabScreen([x, y, w, h]) {
+  const { size } = screen.getPrimaryDisplay();
+  const width = Math.min(1920, size.width); const height = Math.round((width * size.height) / size.width);
+  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width, height } });
+  const img = sources[0] && sources[0].thumbnail; if (!img || img.isEmpty()) return null;
+  const s = img.getSize();
+  return img.crop({ x: Math.round(x * s.width), y: Math.round(y * s.height), width: Math.round(w * s.width), height: Math.round(h * s.height) }).toPNG();
+}
+function syncDetector() {
+  if (!detector) return;
+  if (state.map.auto) detector.start(state.map.region); else detector.stop();
+}
+function onDetect({ hit, text, error }) {
+  state.map.lastText = text; state.map.lastError = error || ''; state.map.lastScore = hit ? hit.score : null;
+  if (hit) state.map.current = hit.id;
+  broadcast(); save();
+}
+
 function broadcast() {
+  state.calloutIds = Object.keys(callouts);
   state.derived = derive(state, perks);
   const json = JSON.stringify(state);
   if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send('state', state);
@@ -39,6 +78,7 @@ function act(name, payload) {
   const ok = dispatch(state, name, payload, { now: Date.now(), perks, characters, random: Math.random });
   if (!ok) return;
   if (name.startsWith('hotkey.')) registerHotkeys();
+  if (name === 'map.set') syncDetector();
   syncOverlayWindows();
   broadcast();
   save();
@@ -109,7 +149,17 @@ function serve() {
     }
     if (url.pathname === '/data') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ perks, characters, art }));
+      return res.end(JSON.stringify({ perks, characters, art, maps }));
+    }
+    const co = url.pathname.match(/^\/callout\/([A-Za-z0-9_]+)$/);
+    if (co) {
+      const file = callouts[co[1]];
+      if (!file) { res.writeHead(404); return res.end(); }
+      return fs.readFile(file, (err, buf) => {
+        if (err) { res.writeHead(404); return res.end(); }
+        const ext = path.extname(file).toLowerCase();
+        res.writeHead(200, { 'Content-Type': ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg', 'Cache-Control': 'no-store' }); res.end(buf);
+      });
     }
     const m = url.pathname.match(/^\/art\/(perks|portraits)\/([A-Za-z0-9_]+)\.png$/);
     if (m) {
@@ -131,9 +181,15 @@ function serve() {
 // ---- app -------------------------------------------------------------------
 app.whenReady().then(async () => {
   load();
+  calloutDir = path.join(app.getPath('userData'), 'callouts');
+  fs.mkdirSync(calloutDir, { recursive: true });
+  scanCallouts();
+  detector = createDetector({ maps, cacheDir: app.getPath('userData'), grab: grabScreen, onResult: onDetect });
   await serve();
-  ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks) }), presets: CHALLENGE_PRESETS, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
+  ipcMain.handle('init', () => ({ state: Object.assign(state, { derived: derive(state, perks), calloutIds: Object.keys(callouts) }), presets: CHALLENGE_PRESETS, maps, calloutDir, perks, characters, art, port: PORT, rules: STREAK_RULES, overlayIds: OVERLAY_IDS }));
   ipcMain.on('action', (_e, name, payload) => act(name, payload));
+  ipcMain.on('callouts', (_e, what) => { if (what === 'open') shell.openPath(calloutDir); else { scanCallouts(); broadcast(); } });
+  ipcMain.on('detect', () => detector.scan(state.map.region));
   ipcMain.on('copy', (_e, text) => clipboard.writeText(String(text)));
 
   mainWin = new BrowserWindow({
@@ -144,6 +200,7 @@ app.whenReady().then(async () => {
   mainWin.on('closed', () => app.quit());
   registerHotkeys();
   syncOverlayWindows();
+  syncDetector();
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());

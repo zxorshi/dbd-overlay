@@ -1,0 +1,297 @@
+[
+ {
+  "id": "Jnk_Office",
+  "name": "Azarov’s Resting Place",
+  "realm": "Autohaven Wreckers"
+ },
+ {
+  "id": "Jnk_Lodge",
+  "name": "Blood Lodge",
+  "realm": "Autohaven Wreckers"
+ },
+ {
+  "id": "jnk_gasstation",
+  "name": "Gas Heaven",
+  "realm": "Autohaven Wreckers"
+ },
+ {
+  "id": "Jnk_Scrapyard",
+  "name": "Wreckers' Yard",
+  "realm": "Autohaven Wreckers"
+ },
+ {
+  "id": "Jnk_Garage",
+  "name": "Wretched Shop",
+  "realm": "Autohaven Wreckers"
+ },
+ {
+  "id": "Swp_Mound",
+  "name": "@#MAP_swamp_III_NAME",
+  "realm": "Backwater Swamp"
+ },
+ {
+  "id": "Swp_GrimPantry",
+  "name": "Grim Pantry",
+  "realm": "Backwater Swamp"
+ },
+ {
+  "id": "Swp_PaleRose",
+  "name": "The Pale Rose",
+  "realm": "Backwater Swamp"
+ },
+ {
+  "id": "Frm_Barn",
+  "name": "Fractured Cowshed",
+  "realm": "Coldwind Farm"
+ },
+ {
+  "id": "Frm_Slaughterhouse",
+  "name": "Rancid Abattoir",
+  "realm": "Coldwind Farm"
+ },
+ {
+  "id": "Frm_CornField",
+  "name": "Rotten Fields",
+  "realm": "Coldwind Farm"
+ },
+ {
+  "id": "Frm_Farmhouse",
+  "name": "The Thompson House",
+  "realm": "Coldwind Farm"
+ },
+ {
+  "id": "Frm_Silo",
+  "name": "Torment Creek",
+  "realm": "Coldwind Farm"
+ },
+ {
+  "id": "Asy_Asylum",
+  "name": "Disturbed Ward",
+  "realm": "Crotus Prenn Asylum"
+ },
+ {
+  "id": "Asy_Chapel",
+  "name": "Father Campbell's Chapel",
+  "realm": "Crotus Prenn Asylum"
+ },
+ {
+  "id": "Wrm_Level_01",
+  "name": "Nostromo Wreckage",
+  "realm": "Dvarka Deepwood"
+ },
+ {
+  "id": "Uba_Level_01",
+  "name": "Toba Landing",
+  "realm": "Dvarka Deepwood"
+ },
+ {
+  "id": "Ion_Shack",
+  "name": "Dead Sands",
+  "realm": "Forsaken Boneyard"
+ },
+ {
+  "id": "Ion_Level_01",
+  "name": "Eyrie of Crows",
+  "realm": "Forsaken Boneyard"
+ },
+ {
+  "id": "Fin_Hideout",
+  "name": "The Game",
+  "realm": "Gideon Meat Plant"
+ },
+ {
+  "id": "Ukr_Saloon",
+  "name": "Dead Dawg Saloon",
+  "realm": "Grave of Glenvale"
+ },
+ {
+  "id": "sub_street",
+  "name": "Lampkin Lane",
+  "realm": "Haddonfield"
+ },
+ {
+  "id": "Qat_Lab",
+  "name": "The Underground Complex",
+  "realm": "Hawkins National Laboratory"
+ },
+ {
+  "id": "hos_treatment",
+  "name": "Treatment Theater",
+  "realm": "Léry's Memorial Institute"
+ },
+ {
+  "id": "Kny_Cottage",
+  "name": "Mount Ormond Resort",
+  "realm": "Ormond"
+ },
+ {
+  "id": "Kny_Cottage02",
+  "name": "Mount Ormond Resort",
+  "realm": "Ormond"
+ },
+ {
+  "id": "Kny_Cottage03",
+  "name": "Mount Ormond Resort",
+  "realm": "Ormond"
+ },
+ {
+  "id": "Glo_Level_01",
+  "name": "Ormond Lake Mine",
+  "realm": "Ormond"
+ },
+ {
+  "id": "Ecl_Level_01",
+  "name": "Raccoon City Police Station East Wing",
+  "realm": "Raccoon City"
+ },
+ {
+  "id": "Ecl_Level_WestSide",
+  "name": "Raccoon City Police Station West Wing",
+  "realm": "Raccoon City"
+ },
+ {
+  "id": "Brl_MaHouse",
+  "name": "Mother's Dwelling",
+  "realm": "Red Forest"
+ },
+ {
+  "id": "Brl_Temple",
+  "name": "The Temple of Purgation",
+  "realm": "Red Forest"
+ },
+ {
+  "id": "Wal_Level_01",
+  "name": "Midwich Elementary School",
+  "realm": "Silent Hill"
+ },
+ {
+  "id": "Qui_Level_01",
+  "name": "Trickster's Delusion",
+  "realm": "Sleepless District"
+ },
+ {
+  "id": "eng_street_01",
+  "name": "Badham Preschool I",
+  "realm": "Springwood"
+ },
+ {
+  "id": "eng_street_02",
+  "name": "Badham Preschool II",
+  "realm": "Springwood"
+ },
+ {
+  "id": "eng_street_03",
+  "name": "Badham Preschool III",
+  "realm": "Springwood"
+ },
+ {
+  "id": "eng_street_04",
+  "name": "Badham Preschool IV",
+  "realm": "Springwood"
+ },
+ {
+  "id": "eng_street_05",
+  "name": "Badham Preschool V",
+  "realm": "Springwood"
+ },
+ {
+  "id": "Qtm_Level_02",
+  "name": "Forgotten Ruins",
+  "realm": "The Decimated Borgo"
+ },
+ {
+  "id": "Qtm_Level_01",
+  "name": "The Shattered Square",
+  "realm": "The Decimated Borgo"
+ },
+ {
+  "id": "Ind_CoalTower",
+  "name": "Coal Tower",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_CoalTower02",
+  "name": "Coal Tower",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "ind_storehouse",
+  "name": "Groaning Storehouse",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "ind_storehouse02",
+  "name": "Groaning Storehouse",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Foundry",
+  "name": "Ironworks of Misery",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Foundry02",
+  "name": "Ironworks of Misery",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Forest",
+  "name": "Shelter Woods",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Forest02",
+  "name": "Shelter Woods",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Mine",
+  "name": "Suffocation Pit",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Ind_Mine02",
+  "name": "Suffocation Pit",
+  "realm": "The MacMillan Estate"
+ },
+ {
+  "id": "Apl_Shack",
+  "name": "Fallen Refuge",
+  "realm": "Withered Isle"
+ },
+ {
+  "id": "Apl_Level_02",
+  "name": "Freddy Fazbear's Pizza",
+  "realm": "Withered Isle"
+ },
+ {
+  "id": "Mtr_Level_1",
+  "name": "Garden of Joy",
+  "realm": "Withered Isle"
+ },
+ {
+  "id": "Apl_Level_01",
+  "name": "Greenville Square",
+  "realm": "Withered Isle"
+ },
+ {
+  "id": "Hti_Manor",
+  "name": "Family Residence",
+  "realm": "Yamaoka Estate"
+ },
+ {
+  "id": "Hti_Manor02",
+  "name": "Family Residence",
+  "realm": "Yamaoka Estate"
+ },
+ {
+  "id": "Hti_Shrine",
+  "name": "Sanctum of Wrath ",
+  "realm": "Yamaoka Estate"
+ },
+ {
+  "id": "Hti_Shrine02",
+  "name": "Sanctum of Wrath ",
+  "realm": "Yamaoka Estate"
+ }
+]

@@ -28,3 +28,6 @@ body.unlocked #frame { border-color: rgba(215, 227, 197, 0.55); background: rgba
 .ok { color: #9fd08a; }
 .who { min-width: 90px; }
 .rule { font-size: 13px; }
+.mapbox { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.callout { max-width: 380px; max-height: 340px; border-radius: 8px; }
+.ring { width: 260px; height: 260px; }

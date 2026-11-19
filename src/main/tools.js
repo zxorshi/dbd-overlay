@@ -1,9 +1,9 @@
 // Tool state and actions. Pure logic: no Electron imports, so it runs under `node --test`.
 // Every action mutates `state` and returns nothing. `ctx` supplies { now, perks, characters, random }.
 
-const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'killerShuffle', 'builds', 'lobby', 'score', 'stats', 'challenge'];
+const OVERLAY_IDS = ['timer', 'crosshair', 'perks', 'streak', 'perkShuffle', 'killerShuffle', 'builds', 'lobby', 'score', 'stats', 'challenge', 'map'];
 
-const SIZES = { lobby: [380, 260], score: [900, 120], builds: [420, 150], stats: [520, 110], challenge: [380, 200], perkShuffle: [400, 150], perks: [300, 200] };
+const SIZES = { map: [420, 440], lobby: [380, 260], score: [900, 120], builds: [420, 150], stats: [520, 110], challenge: [380, 200], perkShuffle: [400, 150], perks: [300, 200] };
 const overlayDefaults = (i, id) => ({
   open: false, locked: false, x: 80 + i * 30, y: 80 + i * 30, w: (SIZES[id] || [360])[0], h: (SIZES[id] || [0, 140])[1],
   color: '#d7e3c5', scale: 1, opacity: 1,
@@ -48,6 +48,8 @@ function defaultState() {
     },
     stats: { matches: [] },
     challenge: { name: 'Challenge', rules: [], played: 0, wins: 0, target: 0 },
+    league: { name: 'My League', members: [] }, // roles: owner | admin | referee | caster | player
+    map: { current: null, auto: false, region: 'full', lastText: '', lastScore: null, lastError: '' },
   };
 }
 
@@ -216,6 +218,27 @@ Object.assign(actions, {
       result: m.result || 'win', stages: Number(m.stages) || 0, gensLeft: Number(m.gensLeft) || 0, kills: Number(m.kills) || 0 });
   },
   'stats.remove'(s, { ts }) { s.stats.matches = s.stats.matches.filter((m) => m.ts !== ts); },
+
+  // ---- league roster (local now; the same actions go through the sync adapter once a server exists)
+  'league.set'(s, f) { Object.assign(s.league, f); },
+  'league.add'(s, { name, role = 'player', team = '' }, { now }) {
+    if (!name || !name.trim()) return;
+    const first = !s.league.members.length;
+    s.league.members.push({ id: 'm' + now + s.league.members.length, name: name.trim().slice(0, 40), role: first ? 'owner' : role === 'owner' ? 'player' : role, team });
+  },
+  'league.update'(s, { id, ...f }) {
+    const m = s.league.members.find((x) => x.id === id); if (!m) return;
+    if (f.role === 'owner' || (m.role === 'owner' && f.role)) delete f.role; // ownership changes only by transfer
+    Object.assign(m, f);
+  },
+  'league.transfer'(s, { id }) {
+    const to = s.league.members.find((x) => x.id === id); if (!to) return;
+    s.league.members.forEach((m) => { if (m.role === 'owner') m.role = 'admin'; }); to.role = 'owner';
+  },
+  'league.remove'(s, { id }) { s.league.members = s.league.members.filter((m) => m.id !== id || m.role === 'owner'); },
+
+  // ---- map callouts
+  'map.set'(s, f) { Object.assign(s.map, f); },
 
   // ---- challenges
   'challenge.set'(s, f) { Object.assign(s.challenge, f); },

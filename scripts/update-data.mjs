@@ -2,7 +2,10 @@
 // Source: dbd.tricky.lol community API. Run: npm run update-data
 import { writeFileSync } from 'node:fs';
 const get = async (p) => (await fetch('https://dbd.tricky.lol/api/' + p)).json();
-const [perks, chars] = await Promise.all([get('perks'), get('characters')]);
+const [perks, chars, mapData] = await Promise.all([get('perks'), get('characters'), get('maps')]);
+const maps = Object.entries(mapData).map(([id, m]) => ({ id, name: m.name, realm: m.realm }))
+  .sort((a, b) => a.realm.localeCompare(b.realm) || a.name.localeCompare(b.name));
+writeFileSync('data/maps.json', JSON.stringify(maps, null, 1));
 const characters = Object.entries(chars)
   .map(([num, c]) => ({ id: c.id, num: Number(num), name: c.name, role: c.role }))
   .sort((a, b) => a.name.localeCompare(b.name));

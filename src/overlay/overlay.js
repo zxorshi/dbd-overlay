@@ -47,7 +47,7 @@ const render = {
   },
   streak(s) {
     const k = s.streak;
-    return `<div class="plate"><div class="col"><span class="lab">${esc(k.label)}</span><span class="num">${k.current}</span></div><div class="col"><span class="lab">Best</span><span class="num sm">${k.best}</span></div><div class="col"><span class="lab">Attempt</span><span class="num sm">${k.attempts}</span></div></div>`;
+    return `<div class="plate">${icon('portraits', k.character, 'portrait')}<div class="col"><span class="lab">${esc(k.label)}</span><span class="num">${k.current}</span></div><div class="col"><span class="lab">Best</span><span class="num sm">${k.best}</span></div><div class="col"><span class="lab">Attempt</span><span class="num sm">${k.attempts}</span></div></div>`;
   },
   perkShuffle(s) {
     return `<div class="perkrow">${s.perkShuffle.result.map((p) => `<div class="perk">${icon('perks', p, 'pi') || '<div class="pi empty"></div>'}<span class="lab">${p ? esc(nameOf(data.perks, p)) : ''}</span></div>`).join('')}</div>`;

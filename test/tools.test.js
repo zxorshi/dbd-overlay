@@ -158,3 +158,10 @@ test('crosshair profiles: save, change, cycle back', () => {
   dispatch(s, 'crosshair.next', {}, ctx(4));
   assert.deepEqual([s.crosshair.size, s.crosshair.offsetY, s.crosshair.profiles.length], [24, 0, 2]);
 });
+
+test('streak: one streak per character', () => {
+  const s = defaultState(); dispatch(s, 'streak.win'); dispatch(s, 'streak.character', { id: 'K' }, ctx(0));
+  assert.equal(s.streak.current, 0); dispatch(s, 'streak.win'); dispatch(s, 'streak.win');
+  dispatch(s, 'streak.character', { id: '' }, ctx(0)); assert.equal(s.streak.current, 1);
+  dispatch(s, 'streak.character', { id: 'K' }, ctx(0)); assert.equal(s.streak.current, 2);
+});

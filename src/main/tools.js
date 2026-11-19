@@ -45,7 +45,7 @@ function defaultState() {
         { id: 'otr', name: 'Off the Record', seconds: 80, armed: false, tone: 780, endsAt: null },
       ],
     },
-    streak: { label: 'Streak', rule: '3k', current: 0, best: 0, attempts: 1, history: [] },
+    streak: { label: 'Streak', rule: '3k', current: 0, best: 0, attempts: 1, history: [], character: '', byChar: {} },
     perkShuffle: { role: 'survivor', excluded: [], locked: [false, false, false, false], result: [null, null, null, null] },
     killerShuffle: { excluded: [], noRepeat: true, played: [], result: null },
     builds: { list: [], activeId: null, rulesetId: null, vsKiller: null },
@@ -184,6 +184,13 @@ const actions = {
   },
   'streak.undo'(s) { const prev = s.streak.history.pop(); if (prev) Object.assign(s.streak, prev); },
   'streak.set'(s, fields) { Object.assign(s.streak, fields); },
+  // Each character keeps its own streak. '' is the general streak.
+  'streak.character'(s, { id = '' }) {
+    const k = s.streak; if (!k.byChar) k.byChar = {};
+    k.byChar[k.character || ''] = { current: k.current, best: k.best, attempts: k.attempts };
+    const next = k.byChar[id] || { current: 0, best: 0, attempts: 1 };
+    Object.assign(k, next, { character: id, history: [] });
+  },
 
   // ---- perk shuffle
   'perkShuffle.set'(s, fields) { Object.assign(s.perkShuffle, fields); },

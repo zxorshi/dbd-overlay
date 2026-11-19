@@ -139,6 +139,7 @@ const VIEWS = {
         <div class="slot"><span class="note">Attempt</span><span class="big">${k.attempts}</span></div></div>
       <div class="row"><button class="btn pri" ${A('streak.win')}>Win ${key('streak.win')}</button><button class="btn warn" ${A('streak.loss')}>Loss ${key('streak.loss')}</button>
         <button class="btn" ${A('streak.undo')}>Undo</button><button class="btn" ${A('streak.set', { current: 0, best: 0, attempts: 1, history: [] })}>Reset all</button></div>
+      <div class="row"><label class="row">Streak for <select style="width:auto" data-streakchar>${opt('', 'General', k.character || '')}${D.characters.map((c) => opt(c.id, esc(c.name), k.character)).join('')}</select></label><span class="note">Each character keeps its own streak.</span></div>
       <div class="grid"><label class="field"><span>Overlay label</span><input type="text" value="${esc(k.label)}" ${B('streak.set', 'label')}></label>
         <label class="field"><span>Win rule (your reference)</span><select ${B('streak.set', 'rule')}>${Object.entries(D.rules).map(([v, l]) => opt(v, l, k.rule)).join('')}</select></label></div></div>`];
   },
@@ -421,6 +422,7 @@ document.addEventListener('change', (e) => {
   else if (t.dataset.team) { const teams = [...S.score.teams]; teams[Number(t.dataset.team)] = t.value; api.act('score.set', { teams }); }
   else if ('killerteam' in t.dataset) { api.act('score.current', { killerTeam: Number(t.value) }); t.blur(); }
   else if ('mappick' in t.dataset) { api.act('map.pick', { id: t.value }); t.blur(); }
+  else if ('streakchar' in t.dataset) { api.act('streak.character', { id: t.value }); t.blur(); }
   else if ('penalty' in t.dataset) api.act('timer.set', { penaltyMs: Math.max(1, Number(t.value)) * 1000 });
   
 });
